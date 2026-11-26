@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="claude:viewport-fit-sides" content="cover">
+  <title>NFL Golf</title>
+  <link rel="stylesheet" href="styles.css?v=8" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="flag">⛳</span> NFL <em>Golf</em></div>
+    <div id="totalBadge" class="total-badge hidden">Score <strong id="totalScore">0</strong></div>
+  </header>
+
+  <main>
+    <!-- Setup -->
+    <section id="setup" class="screen">
+      <div class="card hero">
+        <h1>Tee it up.</h1>
+        <p class="lede">Each hole is an all-time NFL stat leaderboard. The <strong>pin</strong> is a random rank on that list.
+          Name a player who sits as close to that rank as you can. Your score on the hole is how far off you were as a percentage of the list. Lowest total wins.</p>
+        <ul class="rules">
+          <li><b>Example:</b> Hole is <i>Career Rushing Yards</i>, pin is <b>#10</b>. The list has 250 players and you guess someone ranked #15 → 5 spots off → <b>2 points</b>.</li>
+          <li>Name someone who isn't on the list (most go about 250 deep) → <b>out of bounds</b>: 100 points, the max.</li>
+          <li>Tied players share a rank.</li>
+        </ul>
+        <h2>How many holes?</h2>
+        <div class="hole-choices">
+          <button class="choice" data-holes="3">3<span>Quick</span></button>
+          <button class="choice" data-holes="6">6<span>Short</span></button>
+          <button class="choice" data-holes="9">9<span>Front nine</span></button>
+          <button class="choice" data-holes="18">18<span>Full round</span></button>
+        </div>
+        <p class="fine" id="dataNote"></p>
+      </div>
+    </section>
+
+    <!-- Hole -->
+    <section id="hole" class="screen hidden">
+      <div class="card">
+        <div class="hole-head">
+          <div class="hole-num">Hole <span id="holeNum">1</span><small> / <span id="holeCount">9</span></small></div>
+          <div class="pin">
+            <div class="pin-label">Pin</div>
+            <div class="pin-rank">#<span id="parRank">1</span></div>
+          </div>
+        </div>
+        <h2 id="catName" class="cat-name">Category</h2>
+        <p class="cat-sub">Ranked list goes to <b>#<span id="listSize">50</span></b>. Find the player ranked <b>#<span id="parRank2">1</span></b> — or as close as you can.</p>
+
+        <form id="guessForm" autocomplete="off">
+          <div class="ac-wrap">
+            <input id="guessInput" type="text" placeholder="Type a player's name…" aria-label="Player name" aria-autocomplete="list" aria-controls="acList" />
+            <ul id="acList" class="ac-list hidden" role="listbox"></ul>
+          </div>
+          <button id="guessBtn" type="submit" class="primary">Swing</button>
+        </form>
+
+        <div id="result" class="result hidden">
+          <div class="result-top">
+            <div>
+              <div id="resultLabel" class="result-label">Birdie</div>
+              <div id="resultDetail" class="result-detail"></div>
+            </div>
+            <div class="strokes"><span id="resultStrokes">0</span><small>points</small></div>
+          </div>
+          <ol id="board" class="board"></ol>
+          <button id="nextBtn" class="primary wide">Next hole →</button>
+        </div>
+      </div>
+
+      <div class="card scorecard-card">
+        <h3>Scorecard</h3>
+        <div class="scorecard-scroll"><table id="scorecard" class="scorecard"></table></div>
+      </div>
+    </section>
+
+    <!-- Final -->
+    <section id="final" class="screen hidden">
+      <div class="card hero">
+        <div class="final-label">Round complete</div>
+        <div class="final-score"><span id="finalScore">0</span><small>points over <span id="finalHoles">9</span> holes</small></div>
+        <div id="finalRank" class="final-rank"></div>
+        <p id="finalVerdict" class="lede final-verdict"></p>
+        <div class="scorecard-scroll"><table id="finalCard" class="scorecard"></table></div>
+        <textarea id="shareText" class="share-text" rows="12" readonly hidden aria-label="Your scorecard"></textarea>
+        <div class="final-actions">
+          <button id="shareBtn" class="ghost">Share your card</button>
+          <button id="againBtn" class="primary">Play again</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js?v=8"></script>
+</body>
+</html>
