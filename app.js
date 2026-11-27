@@ -17,6 +17,124 @@
   DATA.categories.forEach((c) => {
     c.leaders = c.l.map(([rank, i, disp]) => ({ rank, name: DATA.players[i], disp }));
   });
+
+  // ---------- tees (game modes) ----------
+  // Families: off, def, kick (placekicking + points), punt, ret (returns), gen (games, starts, AV, awards).
+  // Modes with a span rebuild every board from season-by-season stats (seasons.json) for those years.
+  const ALL_FAMS = ["off", "def", "kick", "punt", "ret", "gen"];
+  const TEES = {
+    tips: { label: "The Tips", fams: ALL_FAMS },
+    champ: { label: "Championship", fams: ["off", "def", "gen"] },
+    members: { label: "Members Tees", fams: ["off", "def", "kick", "ret", "gen"], from: 2000 },
+    red: { label: "Red Tees" },
+  };
+  let SEASONS = null, seasonsLoading = null;
+  const loadSeasons = () => seasonsLoading ||= fetch("seasons.json")
+    .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then((S) => {
+      SEASONS = S;
+      DATA.allPlayers = DATA.players.concat(S.extraPlayers);
+      POOL_ALL = DATA.allPlayers.map((name) => ({ key: norm(name), name }));
+      return S;
+    })
+    .catch((e) => { seasonsLoading = null; throw e; });
+
+  // Totals for every player over [from, to]: Map(playerIndex -> {"table.col": sum}).
+  function totals(from, to) {
+    const t = new Map();
+    for (let y = from; y <= to; y++) {
+      const season = SEASONS.seasons[y];
+      if (!season) continue;
+      for (const [table, { c, r }] of Object.entries(season)) {
+        const keys = c.map((col) => table + "." + col);
+        for (const row of r) {
+          let o = t.get(row[0]);
+          if (!o) t.set(row[0], (o = {}));
+          for (let j = 0; j < keys.length; j++) if (row[j + 1]) o[keys[j]] = (o[keys[j]] || 0) + row[j + 1];
+        }
+      }
+    }
+    return t;
+  }
+
+  const add = (o, keys) => keys.reduce((s, k) => s + (o[k] || 0), 0);
+  // Passing formulas need sums of attempts, completions, yards, TDs, INTs, sacks, sack yards.
+  const FORMULAS = {
+    rating(v) {
+      const c = (x) => Math.max(0, Math.min(2.375, x));
+      const a = c((v.cmp / v.att - 0.3) * 5), b = c((v.yds / v.att - 3) * 0.25);
+      const d = c((v.td / v.att) * 20), e = c(2.375 - (v.int / v.att) * 25);
+      return ((a + b + d + e) / 6) * 100;
+    },
+    aya: (v) => (v.yds + 20 * v.td - 45 * v.int) / v.att,
+    nya: (v) => (v.yds - v.sky) / (v.att + v.sk),
+    anya: (v) => (v.yds + 20 * v.td - 45 * v.int - v.sky) / (v.att + v.sk),
+  };
+
+  function rangeBoard(spec, tot, years) {
+    // Rate stats need a minimum volume: qMin per season, up to 10 seasons (= PFR's career minimums).
+    // If fewer than 60 players clear it, lower the bar to the 60th player's volume, but never below a third.
+    let qMin = 1;
+    if (spec.q && !spec.qFlat) {
+      const full = spec.qMin * Math.min(years, 10);
+      const vols = [...tot.values()].map((o) => add(o, spec.q)).sort((a, b) => b - a);
+      qMin = Math.max(1, Math.min(full, Math.max(full / 3, vols[59] || 0)));
+    }
+    const rows = [];
+    for (const [pi, o] of tot) {
+      let v;
+      if (spec.qFlat && add(o, spec.q) < spec.qFlat) continue;
+      if (spec.sum) v = add(o, spec.sum);
+      else {
+        if (add(o, spec.q) < qMin) continue;
+        if (spec.formula) {
+          const vals = {};
+          for (const [name, keys] of Object.entries(spec.k)) vals[name] = add(o, keys);
+          if (!vals.att) continue;
+          v = FORMULAS[spec.formula](vals);
+        } else {
+          const den = add(o, spec.den);
+          if (!den) continue;
+          v = (add(o, spec.num) / den) * (spec.mult || 1);
+        }
+      }
+      const d = 10 ** (spec.dec || 0);
+      v = Math.round(v * d) / d;
+      if (v > 0 || (spec.low && v === 0 && !spec.sum)) rows.push([pi, v]);
+    }
+    rows.sort((a, b) => (spec.low ? a[1] - b[1] : b[1] - a[1]));
+    // Rank with ties, keeping ranks up to 250.
+    let ranked = [];
+    for (let i = 0; i < rows.length; i++) {
+      const prev = ranked[ranked.length - 1];
+      const rank = prev && prev.v === rows[i][1] ? prev.rank : i + 1;
+      if (rank > 250) break;
+      ranked.push({ rank, pi: rows[i][0], v: rows[i][1] });
+    }
+    // Trim a giant tie off the bottom (e.g. dozens of trick-play passers tied at 1 completion).
+    const share = 0.2;
+    while (ranked.length) {
+      const lastRank = ranked[ranked.length - 1].rank;
+      const tail = ranked.filter((r) => r.rank === lastRank).length;
+      if (tail <= share * ranked.length) break;
+      ranked = ranked.slice(0, ranked.length - tail);
+    }
+    const biggest = Math.max(0, ...Object.values(ranked.reduce((m, r) => ((m[r.rank] = (m[r.rank] || 0) + 1), m), {})));
+    // Span boards need 50+ players and no single tie covering over 20% of the list.
+    if (ranked.length < 50 || biggest > share * ranked.length) return null;
+    const fmt = (v) => v.toLocaleString("en-US", { minimumFractionDigits: spec.dec || 0, maximumFractionDigits: spec.dec || 0 });
+    return {
+      id: spec.id, name: spec.name, f: spec.f,
+      leaders: ranked.map((r) => ({ rank: r.rank, name: DATA.allPlayers[r.pi], disp: spec.pct ? fmt(r.v) + "%" : fmt(r.v) + " " + spec.unit })),
+    };
+  }
+
+  function boardsFor(t) {
+    if (!t.from) return DATA.categories.filter((c) => t.fams.includes(c.f));
+    const tot = totals(t.from, t.to);
+    return SEASONS.boards.filter((b) => t.fams.includes(b.f))
+      .map((b) => rangeBoard(b, tot, t.to - t.from + 1)).filter(Boolean);
+  }
   // Hole score = how far off you were, as a % of the leaderboard's length (0–100, one decimal).
   // Out of bounds (player not on the board) scores the maximum: 100.
   const OB_POINTS = 100;
@@ -39,13 +157,13 @@
   };
   const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   // Every name that appears on any leaderboard — the autocomplete pool.
-  const POOL = DATA.players.map((name) => ({ key: norm(name), name }));
+  const POOL_CAREER = DATA.players.map((name) => ({ key: norm(name), name }));
+  let POOL_ALL = null, POOL = POOL_CAREER;
 
   // ---------- state ----------
   let round = null; // { holes: [{cat, par, guess, strokes, ob}], idx }
 
-  function buildRound(n) {
-    const cats = DATA.categories;
+  function buildRound(n, cats) {
     let order = [];
     while (order.length < n) {
       let next = shuffle(cats);
@@ -55,6 +173,7 @@
     }
     return {
       idx: 0,
+      tee: currentTee,
       holes: order.slice(0, n).map((cat) => {
         const pinEntry = cat.leaders[Math.floor(Math.random() * cat.leaders.length)];
         return { cat, par: pinEntry.rank, guess: null, strokes: null, ob: false };
@@ -72,8 +191,38 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function startRound(n) {
-    round = buildRound(n);
+  // The tee in play: a TEES entry, plus from/to for span modes.
+  let currentTee = null;
+  function chosenTee() {
+    const id = document.querySelector('input[name="tee"]:checked').value;
+    const last = SEASONS ? SEASONS.years[1] : DATA.lastSeason;
+    if (id === "red") {
+      const fams = [...document.querySelectorAll('input[name="fam"]:checked')].flatMap((c) => c.value.split(","));
+      const from = +$("yearFrom").value, to = $("yearTo").value === "present" ? last : +$("yearTo").value;
+      return { id, label: TEES.red.label, fams, from, to, present: $("yearTo").value === "present" };
+    }
+    const t = TEES[id];
+    return { id, label: t.label, fams: t.fams, from: t.from, to: t.from ? last : undefined, present: !!t.from };
+  }
+  const spanText = (t) => (t.from ? `${t.from}–${t.present ? "present" : t.to}` : "All time");
+  const teeText = (t) => `${t.label} · ${spanText(t)}`;
+
+  async function startRound(n) {
+    const t = chosenTee();
+    if (t.from && !SEASONS) {
+      setChoices(false, "Loading season-by-season stats…");
+      try { await loadSeasons(); } catch (e) { setChoices(true, `Couldn't load season stats (${e.message}). Try again.`); return; }
+      setChoices(true);
+      Object.assign(t, chosenTee());
+    }
+    if (t.id === "red" && !t.fams.length) { redNote("Check at least one category.", true); return; }
+    if (t.id === "red" && t.from > t.to) { redNote("The starting year is after the ending year.", true); return; }
+    const cats = boardsFor(t);
+    if (!cats.length) { redNote("Not enough players on any leaderboard for that span. Widen the years or add categories.", true); return; }
+    currentTee = t;
+    POOL = t.from ? POOL_ALL : POOL_CAREER;
+    round = buildRound(n, cats);
+    $("holeTee").textContent = teeText(t);
     $("holeCount").textContent = n;
     renderHole();
     show("hole");
@@ -211,6 +360,7 @@
     const n = round.holes.length, t = total(), avg = t / n;
     $("finalScore").textContent = fmtPts(t);
     $("finalHoles").textContent = n;
+    $("finalTee").textContent = teeText(round.tee);
     const aces = round.holes.filter((h) => h.strokes === 0).length;
     const [rank, blurb] =
       avg <= 2 ? ["Tour Pro", "You know these leaderboards cold."] :
@@ -235,7 +385,7 @@
       `   Hit: ${h.ob ? "OB" : "#" + h.guessRank} ${h.guess}`,
     ].join("\n"));
     return [
-      `NFL Golf ⛳ ${round.holes.length} holes — ${fmtPts(total())} points (${$("finalRank").textContent})`,
+      `NFL Golf ⛳ ${teeText(round.tee)} · ${round.holes.length} holes — ${fmtPts(total())} points (${$("finalRank").textContent})`,
       round.holes.map(icon).join(""),
       "",
       ...holes,
@@ -316,9 +466,43 @@
       .catch(() => { box.hidden = false; box.focus(); box.select(); $("shareBtn").textContent = "Select and copy below"; });
     setTimeout(() => ($("shareBtn").textContent = "Share your card"), 2000);
   });
-  choices.forEach((b) => (b.disabled = false));
-
-  $("dataNote").textContent =
-    `${DATA.categories.length} stat categories · ${POOL.length.toLocaleString()} players · Regular-season career leaderboards from Pro Football Reference, as of ${DATA.asOf}.`;
+  // ---------- setup screen ----------
+  const baseNote = `${DATA.categories.length} all-time stat categories · Regular-season stats from Pro Football Reference, as of ${DATA.asOf}.`;
+  function setChoices(on, note) {
+    choices.forEach((b) => (b.disabled = !on));
+    $("dataNote").textContent = note || baseNote;
+  }
+  function redNote(msg, warn) {
+    $("redNote").textContent = msg;
+    $("redNote").classList.toggle("warn", !!warn);
+    if (warn) $("redOptions").scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  // Year pickers: From defaults to 1990, To defaults to "Present".
+  const last = DATA.lastSeason;
+  for (let y = last; y >= DATA.firstSeason; y--) {
+    $("yearFrom").add(new Option(y, y));
+    $("yearTo").add(new Option(y, y));
+  }
+  $("yearTo").add(new Option("Present", "present"), 0);
+  $("yearFrom").value = "1990";
+  $("yearTo").value = "present";
+  // Live count of how many holes the Red Tees settings produce (needs season data).
+  function updateRed() {
+    const red = document.querySelector('input[name="tee"]:checked').value === "red";
+    $("redOptions").classList.toggle("hidden", !red);
+    if (!red) return;
+    if (!SEASONS) { redNote("Loading season-by-season stats…"); loadSeasons().then(updateRed, (e) => redNote(`Couldn't load season stats (${e.message}).`, true)); return; }
+    const t = chosenTee();
+    if (!t.fams.length) return redNote("Check at least one category.", true);
+    if (t.from > t.to) return redNote("The starting year is after the ending year.", true);
+    const n = boardsFor(t).length;
+    redNote(n ? `${n} leaderboard${n === 1 ? "" : "s"} in play for ${spanText(t)}.` : "No leaderboards are deep enough for that span. Widen the years or add categories.", !n);
+  }
+  document.querySelectorAll('input[name="tee"]').forEach((r) => r.addEventListener("change", () => {
+    if (r.value === "members" || r.value === "red") loadSeasons().catch(() => {});
+    updateRed();
+  }));
+  document.querySelectorAll('input[name="fam"], #yearFrom, #yearTo').forEach((el) => el.addEventListener("change", updateRed));
+  setChoices(true);
   }
 })();

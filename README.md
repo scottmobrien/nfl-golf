@@ -1,18 +1,36 @@
 # NFL Golf
 
-Each hole is an all-time NFL career leaderboard with a random pin (rank). Name the player sitting
+Each hole is an NFL stat leaderboard with a random pin (rank). Name the player sitting
 closest to that rank. Your score on the hole is how far off you were as a percentage of the list
 (out of bounds = 100). Lowest total wins.
 
-Play: open `index.html` through any static web server (it fetches `data.json`).
+Play: open `index.html` through any static web server (it fetches `data.json`, and `seasons.json`
+for the span modes).
+
+## Tees (game modes)
+
+| Tee | Boards | Years |
+| --- | --- | --- |
+| The Tips (Sicko Mode) | every family | all time (PFR career boards) |
+| Championship | offense, defense, games/starts/AV/awards (no kicking, punting, returns) | all time |
+| Members Tees | everything except punting | 2000–present, rebuilt from season stats |
+| Red Tees | player picks families: Offensive, Defensive, Placekicking, Punting/Returning, Games & Starts | player picks From / To |
+
+Board families are set in `family()` in `tools/build_data.py`; points scored counts as placekicking.
+Span boards are rebuilt in the browser from season totals. Rate stats (Y/A, completion %, FG %…)
+require a minimum volume that scales with the span (10+ seasons = PFR's career minimums). A span
+board needs at least 50 players and no single tie covering more than 20% of the list.
+Career-only boards (AV, award shares, pick sixes, teams beaten, fumbles) appear only in the all-time tees.
 
 ## Data
 
-Career leaderboards come from [Pro Football Reference](https://www.pro-football-reference.com/leaders/).
+From [Pro Football Reference](https://www.pro-football-reference.com/leaders/).
 
 To refresh:
-1. In a pro-football-reference.com tab, paste `tools/pfr-export-all.js` (and `tools/pfr-qbwins-export.js`) into the DevTools console.
-2. Move the downloaded JSON files into `data-src/` (`pfr_all_career_leaders.json`, `pfr_qb_teams_beaten.json`).
-3. `python3 tools/build_data.py` to regenerate `data.json`.
+1. In a pro-football-reference.com tab, paste each script into the DevTools console:
+   `tools/pfr-export-all.js` (career boards), `tools/pfr-qbwins-export.js` (teams beaten),
+   `tools/pfr-export-seasons.js` (every season's stat pages; about 50 minutes, saves a file per 10 seasons).
+2. Move the downloads into `data-src/`: `pfr_all_career_leaders.json`, `pfr_qb_teams_beaten.json`, `pfr_seasons_*.json`.
+3. `python3 tools/build_data.py` to regenerate `data.json` and `seasons.json`.
 
 `python3 tools/build_artifact.py` bundles a single-page version into `dist/` for publishing as a Claude artifact.

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="claude:viewport-fit-sides" content="cover">
   <title>NFL Golf</title>
-  <link rel="stylesheet" href="styles.css?v=8" />
+  <link rel="stylesheet" href="styles.css?v=9" />
 </head>
 <body>
   <header class="topbar">
@@ -18,13 +18,50 @@
     <section id="setup" class="screen">
       <div class="card hero">
         <h1>Tee it up.</h1>
-        <p class="lede">Each hole is an all-time NFL stat leaderboard. The <strong>pin</strong> is a random rank on that list.
+        <p class="lede">Each hole is an NFL stat leaderboard. The <strong>pin</strong> is a random rank on that list.
           Name a player who sits as close to that rank as you can. Your score on the hole is how far off you were as a percentage of the list. Lowest total wins.</p>
         <ul class="rules">
-          <li><b>Example:</b> Hole is <i>Career Rushing Yards</i>, pin is <b>#10</b>. The list has 250 players and you guess someone ranked #15 → 5 spots off → <b>2 points</b>.</li>
+          <li><b>Example:</b> Hole is <i>Rushing Yards</i>, pin is <b>#10</b>. The list has 250 players and you guess someone ranked #15 → 5 spots off → <b>2 points</b>.</li>
           <li>Name someone who isn't on the list (most go about 250 deep) → <b>out of bounds</b>: 100 points, the max.</li>
           <li>Tied players share a rank.</li>
         </ul>
+
+        <h2>Pick your tees</h2>
+        <div class="tees" role="radiogroup" aria-label="Game mode">
+          <label class="tee tee-tips"><input type="radio" name="tee" value="tips" checked />
+            <span class="tee-name"><i class="tee-dot"></i>The Tips <small>(Sicko Mode)</small></span>
+            <span class="tee-copy">All statistical categories (including kicking/punting/returning), all time. A challenging round for true NFL sickos.</span>
+          </label>
+          <label class="tee tee-champ"><input type="radio" name="tee" value="champ" />
+            <span class="tee-name"><i class="tee-dot"></i>Championship</span>
+            <span class="tee-copy">All time periods, all categories except for kicking/punting/returning. Still very tough, good luck.</span>
+          </label>
+          <label class="tee tee-members"><input type="radio" name="tee" value="members" />
+            <span class="tee-name"><i class="tee-dot"></i>Members Tees</span>
+            <span class="tee-copy">All categories, but only since 2000.</span>
+          </label>
+          <label class="tee tee-red"><input type="radio" name="tee" value="red" />
+            <span class="tee-name"><i class="tee-dot"></i>Red Tees</span>
+            <span class="tee-copy">Choose your own category options and time periods. Just delete a few beers and have fun out on the course, you're not maintaining a handicap anyway.</span>
+          </label>
+        </div>
+
+        <fieldset id="redOptions" class="red-options hidden">
+          <legend>Categories</legend>
+          <div class="fams">
+            <label><input type="checkbox" name="fam" value="off" checked /> Offensive</label>
+            <label><input type="checkbox" name="fam" value="def" checked /> Defensive</label>
+            <label><input type="checkbox" name="fam" value="kick" /> Placekicking</label>
+            <label><input type="checkbox" name="fam" value="punt,ret" /> Punting/Returning</label>
+            <label><input type="checkbox" name="fam" value="gen" /> Games &amp; Starts</label>
+          </div>
+          <div class="years">
+            <label>From <select id="yearFrom"></select></label>
+            <label>To <select id="yearTo"></select></label>
+          </div>
+          <p id="redNote" class="fine red-note"></p>
+        </fieldset>
+
         <h2>How many holes?</h2>
         <div class="hole-choices">
           <button class="choice" data-holes="3">3<span>Quick</span></button>
@@ -46,6 +83,7 @@
             <div class="pin-rank">#<span id="parRank">1</span></div>
           </div>
         </div>
+        <div id="holeTee" class="hole-tee"></div>
         <h2 id="catName" class="cat-name">Category</h2>
         <p class="cat-sub">Ranked list goes to <b>#<span id="listSize">50</span></b>. Find the player ranked <b>#<span id="parRank2">1</span></b> — or as close as you can.</p>
 
@@ -79,7 +117,7 @@
     <!-- Final -->
     <section id="final" class="screen hidden">
       <div class="card hero">
-        <div class="final-label">Round complete</div>
+        <div class="final-label">Round complete · <span id="finalTee"></span></div>
         <div class="final-score"><span id="finalScore">0</span><small>points over <span id="finalHoles">9</span> holes</small></div>
         <div id="finalRank" class="final-rank"></div>
         <p id="finalVerdict" class="lede final-verdict"></p>
@@ -93,6 +131,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

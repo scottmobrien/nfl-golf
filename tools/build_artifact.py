@@ -2,7 +2,7 @@
 
 Usage: python3 tools/build_artifact.py
 Writes dist/index.html (CSS and JS inlined, no <html>/<head>/<body> wrapper — the artifact
-host adds that) and copies data.json beside it.
+host adds that) and copies data.json and seasons.json beside it.
 """
 import os, re, shutil
 
@@ -25,5 +25,7 @@ page = "\n".join([
 ])
 os.makedirs(DIST, exist_ok=True)
 open(os.path.join(DIST, "index.html"), "w", encoding="utf-8").write(page)
-shutil.copy(os.path.join(ROOT, "data.json"), os.path.join(DIST, "data.json"))
+for name in ("data.json", "seasons.json"):
+    if os.path.exists(os.path.join(ROOT, name)):
+        shutil.copy(os.path.join(ROOT, name), os.path.join(DIST, name))
 print("dist/index.html", len(page), "bytes; dist/data.json", os.path.getsize(os.path.join(DIST, "data.json")), "bytes")
