@@ -163,7 +163,22 @@
   // ---------- state ----------
   let round = null; // { holes: [{cat, par, guess, strokes, ob}], idx }
 
-  function buildRound(n, cats, rnd = Math.random) {
+  // Pins on long boards lean toward the top: deep pins (#101+) are less fun to aim at.
+  // Boards of 100 or fewer stay uniform. Within a band, every listed player is equally likely.
+  const PIN_BANDS = [[1, 75, 0.55], [76, 100, 0.30], [101, Infinity, 0.15]];
+  function pickPin(leaders, rnd, uniform) {
+    const any = () => leaders[Math.floor(rnd() * leaders.length)];
+    if (uniform || leaders.length <= 100) return any();
+    let x = rnd();
+    for (const [lo, hi, w] of PIN_BANDS) {
+      if ((x -= w) < 0 || hi === Infinity) {
+        const band = leaders.filter((p) => p.rank >= lo && p.rank <= hi);
+        return band.length ? band[Math.floor(rnd() * band.length)] : any();
+      }
+    }
+  }
+
+  function buildRound(n, cats, rnd = Math.random, uniformPins = false) {
     let order = [];
     while (order.length < n) {
       let next = shuffle(cats, rnd);
@@ -175,7 +190,7 @@
       idx: 0,
       tee: currentTee,
       holes: order.slice(0, n).map((cat) => {
-        const pinEntry = cat.leaders[Math.floor(rnd() * cat.leaders.length)];
+        const pinEntry = pickPin(cat.leaders, rnd, uniformPins);
         return { cat, par: pinEntry.rank, guess: null, strokes: null, ob: false };
       }),
     };
@@ -242,7 +257,8 @@
     const t = dailyTee(date);
     currentTee = t;
     POOL = POOL_ALL;
-    round = buildRound(9, boardsFor(t), seeded("nfl-golf-daily:" + date));
+    // The Daily 9 #1 launched with uniform pins; keep it so saved rounds replay the same course.
+    round = buildRound(9, boardsFor(t), seeded("nfl-golf-daily:" + date), t.num <= 1);
     $("holeTee").textContent = teeText(t);
     $("holeCount").textContent = 9;
     // Replay saved swings so a refresh can't re-roll a hole.
