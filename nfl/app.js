@@ -148,7 +148,8 @@
   const OB_TO_PAR = 5;
   const parFromPts = (p, ob) =>
     ob || p >= OB_POINTS ? OB_TO_PAR : p === 0 ? -3 : p <= 1 ? -2 : p <= 3 ? -1 : p <= 7 ? 0 : p <= 15 ? 1 : p <= 30 ? 2 : 3;
-  const toPar = (h) => parFromPts(h.strokes, h.ob);
+  // Asking the caddy adds a stroke on that hole, on top of the result (so a caddied triple is +4).
+  const toPar = (h) => parFromPts(h.strokes, h.ob) + (h.caddy ? 1 : 0);
   const fmtPar = (n) => (n === 0 ? "E" : n > 0 ? `+${n}` : `−${-n}`);
   const HOLE_PAR = 4;
 
@@ -208,7 +209,8 @@
   }
 
   const total = () => pts(round.holes.reduce((s, h) => s + (h.strokes ?? 0), 0)); // miss %, the tiebreak
-  const totalPar = () => round.holes.reduce((s, h) => s + (h.strokes == null ? 0 : toPar(h)), 0);
+  // Unplayed holes count only a caddy stroke already taken.
+  const totalPar = () => round.holes.reduce((s, h) => s + (h.strokes == null ? (h.caddy ? 1 : 0) : toPar(h)), 0);
   const maxRank = (cat) => cat.leaders[cat.leaders.length - 1].rank;
 
   // ---------- screens ----------
@@ -280,6 +282,7 @@
     $("reteeBtn").classList.add("hidden"); // one Daily 9 round per day
     $("holeCount").textContent = 9;
     // Replay saved swings so a refresh can't re-roll a hole.
+    (saved.caddy || []).forEach((i) => { if (round.holes[i]) round.holes[i].caddy = true; });
     saved.picks.forEach((r, i) => { round.idx = i; scoreGuess(round.holes[i], r); });
     round.idx = Math.min(saved.picks.length, 8);
     if (saved.picks.length >= 9) { finish(); return; }
@@ -326,6 +329,7 @@
     $("catNote").textContent = note;
     $("catNote").classList.toggle("hidden", !note);
     $("listSize").textContent = maxRank(h.cat);
+    renderCaddy(h);
     $("result").classList.add("hidden");
     $("guessForm").classList.remove("hidden");
     $("guessInput").value = "";
@@ -382,16 +386,55 @@
     h.pinName = pinNames.length === 1 ? pinNames[0] : `${pinNames[0]} +${pinNames.length - 1} tied`;
   }
 
+  // Named from the final score on the hole, caddy stroke included (a caddied ace is an eagle).
   function label(h) {
     if (h.ob) return ["Out of bounds", "bad"];
-    const s = h.strokes;
-    if (s === 0) return ["Hole in one!", "good"];
-    if (s <= 1) return ["Eagle", "good"];
-    if (s <= 3) return ["Birdie", "good"];
-    if (s <= 7) return ["Par", ""];
-    if (s <= 15) return ["Bogey", ""];
-    if (s <= 30) return ["Double bogey", "bad"];
-    return ["Triple bogey", "bad"];
+    const p = toPar(h);
+    const names = { "-3": "Hole in one!", "-2": "Eagle", "-1": "Birdie", 0: "Par", 1: "Bogey", 2: "Double bogey", 3: "Triple bogey" };
+    return [names[p] || "Quadruple bogey", p < 0 ? "good" : p >= 2 ? "bad" : ""];
+  }
+
+  // ---------- Ask the Caddy ----------
+  // Reveals the player(s) 30% of the list away from the pin on each side: the double-bogey line.
+  function caddyRead(h) {
+    const d = Math.round(0.3 * h.cat.leaders.length);
+    const at = (target) => {
+      if (target < 1 || target > maxRank(h.cat)) return null;
+      let best = null;
+      for (const p of h.cat.leaders) if (best === null || Math.abs(p.rank - target) < Math.abs(best - target)) best = p.rank;
+      return h.cat.leaders.filter((p) => p.rank === best);
+    };
+    return { d, up: at(h.par - d), down: at(h.par + d) };
+  }
+  function renderCaddy(h) {
+    const box = $("caddyBox");
+    box.classList.toggle("hidden", !h.caddy);
+    $("caddyBtn").classList.toggle("hidden", !!h.caddy || h.strokes != null);
+    if (!h.caddy) return;
+    const { d, up, down } = caddyRead(h);
+    const side = (ps, arrow, where) => {
+      if (!ps) return `<li>${arrow} Nobody is ${d} spots ${where} the pin.</li>`;
+      const who = ps.length <= 2 ? ps.map((p) => esc(p.name)).join(" / ") : `${esc(ps[0].name)} +${ps.length - 1} tied`;
+      const stat = round.tee.hard ? "" : ` <span class="val">(${esc(ps[0].disp)})</span>`;
+      return `<li>${arrow} <b>#${ps[0].rank}</b> ${who}${stat}</li>`;
+    };
+    box.innerHTML = `<div class="caddy-head">🏌️ Your caddy's read <small>(30% of this list = ${d} spots)</small></div>
+      <ul>${side(up, "⬆️", "above")}${side(down, "⬇️", "below")}</ul>
+      <p class="fine">The pin is somewhere between them. Your caddy charged you a stroke.</p>`;
+  }
+  function useCaddy() {
+    const h = round.holes[round.idx];
+    if (h.caddy || h.strokes != null) return;
+    h.caddy = true;
+    if (round.tee.daily) {
+      const d = loadDaily() || { date: round.tee.daily, picks: [] };
+      d.caddy = [...new Set([...(d.caddy || []), round.idx])];
+      saveDaily(d);
+    }
+    renderCaddy(h);
+    $("totalScore").textContent = fmtPar(totalPar());
+    renderScorecard($("scorecard"), true);
+    $("guessInput").focus();
   }
 
   function renderResult(h) {
@@ -402,6 +445,8 @@
 
     const [txt, cls] = label(h);
     $("resultLabel").textContent = txt;
+    if (h.caddy) $("resultLabel").insertAdjacentHTML("beforeend", '<span class="caddy-tag">🏌️ caddy +1</span>');
+    $("caddyBtn").classList.add("hidden");
     $("resultLabel").className = "result-label " + cls;
     $("resultStrokes").textContent = fmtPar(toPar(h));
 
@@ -454,16 +499,17 @@
     const who = (name) => `<span class="sc-name">${esc(name)}</span>`;
     const pins = `<tr><td class="row-head">Pin</td>${hs.map((h, i) => cell(h, i, "#" + h.par + (h.strokes == null ? "" : who(h.pinName)))).join("")}<td></td></tr>`;
     const hits = `<tr><td class="row-head">Hit</td>${hs.map((h, i) => cell(h, i, h.strokes == null ? "" : (h.ob ? "OB" : "#" + h.guessRank) + who(h.guess), h.ob ? "ob" : "")).join("")}<td></td></tr>`;
-    const strokes = `<tr><td class="row-head">Score</td>${hs.map((h, i) => cell(h, i, h.strokes == null ? "" : fmtPar(toPar(h)), h.strokes === 0 ? "ace" : h.ob ? "ob" : toPar(h) < 0 ? "under" : "")).join("")}<td><b>${fmtPar(totalPar())}</b></td></tr>`;
+    const strokes = `<tr><td class="row-head">Score</td>${hs.map((h, i) => cell(h, i, (h.strokes == null ? (h.caddy ? "+1" : "") : fmtPar(toPar(h))) + (h.caddy ? " 🏌️" : ""), h.strokes === 0 && !h.caddy ? "ace" : h.ob ? "ob" : h.strokes != null && toPar(h) < 0 ? "under" : "")).join("")}<td><b>${fmtPar(totalPar())}</b></td></tr>`;
     const ch = round.tee.challenge;
     const rival = ch && !live
-      ? `<tr class="rival-row"><td class="row-head">Rival</td>${hs.map((h, i) => cell(h, i, fmtPar(parFromPts(ch.s[i])), parFromPts(ch.s[i]) < toPar(h) ? "beat" : "")).join("")}<td><b>${fmtPar(rivalPar(ch))}</b></td></tr>`
+      ? `<tr class="rival-row"><td class="row-head">Rival</td>${hs.map((h, i) => cell(h, i, fmtPar(rivalHole(ch, i)) + ((ch.c || []).includes(i) ? " 🏌️" : ""), rivalHole(ch, i) < toPar(h) ? "beat" : "")).join("")}<td><b>${fmtPar(rivalPar(ch))}</b></td></tr>`
       : "";
     table.innerHTML = head + cats + pins + hits + strokes + rival;
   }
 
   // ---------- final ----------
-  const rivalPar = (ch) => ch.s.reduce((a, p) => a + parFromPts(p), 0);
+  const rivalHole = (ch, i) => parFromPts(ch.s[i]) + ((ch.c || []).includes(i) ? 1 : 0);
+  const rivalPar = (ch) => ch.s.reduce((a, _, i) => a + rivalHole(ch, i), 0);
   function finish() {
     const n = round.holes.length, t = totalPar(), avg = t / n;
     $("finalScore").textContent = fmtPar(t);
@@ -478,6 +524,8 @@
       ["Beer Cart Regular", "Rough day on the links."];
     let verdict = `${avg === 0 ? "Even" : (avg > 0 ? "+" : "−") + Math.abs(avg).toFixed(1)} per hole. ${blurb}`;
     if (aces) verdict += ` ${aces} hole${aces > 1 ? "s" : ""}-in-one!`;
+    const caddies = round.holes.filter((h) => h.caddy).length;
+    if (caddies) verdict += ` Asked the caddy ${caddies === 1 ? "once" : caddies + " times"}.`;
     $("finalRank").textContent = rank;
     $("finalVerdict").textContent = verdict;
     renderScorecard($("finalCard"), false);
@@ -503,11 +551,12 @@
 
   function shareText() {
     const icon = (h) => { const p = toPar(h); return h.ob ? "🟥" : p === -3 ? "⛳" : p < 0 ? "🟩" : p === 0 ? "⬜" : p === 1 ? "🟨" : "🟧"; };
-    const res = (h) => `${label(h)[0].replace("!", "")} (${fmtPar(toPar(h))})`;
+    const res = (h) => `${label(h)[0].replace("!", "")} (${fmtPar(toPar(h))})${h.caddy ? " 🏌️" : ""}`;
+    const caddies = round.holes.filter((h) => h.caddy).length;
     if (round.tee.daily) {
       // Three lines, Wordle-style: fits in one glance in a group chat, and gives nothing away.
       return [
-        `⛳ NFL Golf Daily 9 #${round.tee.num} — ${fmtPar(totalPar())} (${$("finalRank").textContent})${round.tee.hard ? " 🔥" : ""}`,
+        `⛳ NFL Golf Daily 9 #${round.tee.num} — ${fmtPar(totalPar())} (${$("finalRank").textContent})${round.tee.hard ? " 🔥" : ""}${caddies ? ` 🏌️×${caddies}` : ""}`,
         round.holes.map(icon).join(""),
         location.origin + location.pathname,
       ].join("\n");
@@ -593,6 +642,13 @@
   $("nextBtn").addEventListener("click", next);
   $("againBtn").addEventListener("click", () => { renderDailyCard(); show("setup"); });
   $("dailyBtn").addEventListener("click", startDaily);
+  $("caddyBtn").addEventListener("click", () => {
+    const dlg = $("caddyDialog");
+    if (typeof dlg.showModal !== "function") { if (confirm(dlg.querySelector("p").textContent + "?")) useCaddy(); return; }
+    dlg.returnValue = "";
+    dlg.showModal();
+  });
+  $("caddyDialog").addEventListener("close", () => { if ($("caddyDialog").returnValue === "yes") useCaddy(); });
 
   // Re-Tee: a fresh course with the same tee, years, categories, hole count and Hard mode.
   function reTee() {
@@ -641,6 +697,7 @@
       t: { id: t.id, l: t.label, f: t.fams, from: t.from || 0, to: t.from && !t.present ? t.to : 0, hard: t.hard ? 1 : 0 },
       h: round.holes.map((h) => [h.cat.id, h.par]),
       s: round.holes.map((h) => h.strokes),
+      c: round.holes.flatMap((h, i) => (h.caddy ? [i] : [])),  // holes where the sender asked the caddy
     };
     return `${location.origin}${location.pathname}?challenge=${enc64(spec)}`;
   }

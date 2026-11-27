@@ -20,7 +20,7 @@
   <meta name="twitter:description" content="Name the player closest to a random spot on an all-time NFL leaderboard. Scored like golf, with a Daily 9 for everyone." />
   <meta name="twitter:image" content="https://sportsbutmakeitgolf.com/og.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9B%B3%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="styles.css?v=18" />
+  <link rel="stylesheet" href="styles.css?v=19" />
 </head>
 <body>
   <header class="topbar">
@@ -139,6 +139,7 @@
         <p id="catNote" class="cat-note hidden"></p>
         <p class="cat-sub">Ranked list goes to <b>#<span id="listSize">50</span></b>. Find the player ranked <b>#<span id="parRank2">1</span></b><span id="pinStat"></span> — or as close as you can.</p>
 
+        <div id="caddyBox" class="caddy-box hidden" aria-live="polite"></div>
         <form id="guessForm" autocomplete="off">
           <div class="ac-wrap">
             <input id="guessInput" type="text" placeholder="Type a player's name…" aria-label="Player name" aria-autocomplete="list" aria-controls="acList" />
@@ -146,6 +147,7 @@
           </div>
           <button id="guessBtn" type="submit" class="primary">Swing</button>
         </form>
+        <button id="caddyBtn" type="button" class="caddy-btn">🏌️ Ask the Caddy <span>+1</span></button>
 
         <div id="result" class="result hidden">
           <div class="result-top">
@@ -187,7 +189,18 @@
     </section>
   </main>
 
+  <dialog id="caddyDialog" class="caddy-dialog" aria-labelledby="caddyTitle">
+    <form method="dialog">
+      <h3 id="caddyTitle">🏌️ Ask the Caddy?</h3>
+      <p>Add +1 to your score, but reveal the player(s) who are 30% away from the pin in either direction</p>
+      <div class="caddy-actions">
+        <button value="no" class="ghost">Never mind</button>
+        <button value="yes" class="primary" autofocus>Ask the Caddy (+1)</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="leaderboard-config.js?v=11"></script>
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>

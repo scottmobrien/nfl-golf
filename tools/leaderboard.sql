@@ -7,7 +7,7 @@ create table if not exists public.daily_scores (
   day        date        not null,
   name       text        not null check (char_length(btrim(name)) between 1 and 20),
   score      numeric(5,1) not null check (score between 0 and 900),
-  to_par     smallint    check (to_par between -27 and 45),  -- golf score for the 9 holes (ranked on this)
+  to_par     smallint    check (to_par between -27 and 54),  -- golf score for the 9 holes (ranked on this)
   hard       boolean     not null default false,  -- played in Hard mode (pin stat hidden)
   device     uuid        not null,
   created_at timestamptz not null default now(),
@@ -17,7 +17,11 @@ create table if not exists public.daily_scores (
 create index if not exists daily_scores_day_score on public.daily_scores (day, score, created_at);
 
 -- Added when scoring switched to strokes vs par (safe to re-run; does nothing if the column exists).
-alter table public.daily_scores add column if not exists to_par smallint check (to_par between -27 and 45);
+alter table public.daily_scores add column if not exists to_par smallint check (to_par between -27 and 54);
+
+-- Ask the Caddy adds up to +1 a hole, so the worst Daily 9 is 9 x (OB +5, caddy +1) = +54.
+alter table public.daily_scores drop constraint if exists daily_scores_to_par_check;
+alter table public.daily_scores add constraint daily_scores_to_par_check check (to_par between -27 and 54);
 
 alter table public.daily_scores enable row level security;
 

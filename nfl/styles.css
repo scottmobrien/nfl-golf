@@ -155,6 +155,29 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
 .scorecard .rival-row td { color: var(--muted); background: #faf9f4; }
 .scorecard .rival-row td.beat { color: var(--bad); font-weight: 700; }
 
+.caddy-btn {
+  display: block; margin: 12px auto 0; padding: 8px 16px; border-radius: 999px; font-size: 15px; font-weight: 700;
+  background: #fff; color: var(--fairway); border: 2px dashed #b9c9bd;
+}
+.caddy-btn:hover { border-color: var(--fairway); background: #f1f8f3; }
+.caddy-btn span { color: var(--flag); margin-left: 4px; }
+.caddy-box { margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; background: #fff8e6; border: 1px solid #f0d58c; font-size: 15px; }
+.caddy-box .caddy-head { font-weight: 800; margin-bottom: 6px; }
+.caddy-box .caddy-head small { font-weight: 600; color: var(--muted); }
+.caddy-box ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.caddy-box li b { font-variant-numeric: tabular-nums; }
+.caddy-box .val { color: var(--muted); }
+.caddy-box .fine { margin: 6px 0 0; }
+.caddy-tag { font-size: 14px; font-weight: 700; color: var(--flag); margin-left: 8px; vertical-align: middle; }
+.caddy-dialog {
+  border: 0; border-radius: 16px; padding: 22px 24px; max-width: min(420px, calc(100vw - 32px));
+  background: var(--card); color: var(--ink); box-shadow: 0 20px 50px rgba(0,0,0,.4);
+}
+.caddy-dialog::backdrop { background: rgba(10,30,18,.55); }
+.caddy-dialog h3 { margin: 0 0 8px; font-size: 20px; text-transform: none; letter-spacing: 0; color: var(--ink); }
+.caddy-dialog p { margin: 0 0 18px; font-size: 16px; line-height: 1.45; }
+.caddy-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
 .hole-head { display: flex; justify-content: space-between; align-items: center; }
 .hole-num { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 .hole-num span:first-child { color: var(--ink); font-size: 22px; }
