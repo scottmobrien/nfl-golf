@@ -123,8 +123,11 @@
     // Span boards need 50+ players and no single tie covering over 20% of the list.
     if (ranked.length < 50 || biggest > share * ranked.length) return null;
     const fmt = (v) => v.toLocaleString("en-US", { minimumFractionDigits: spec.dec || 0, maximumFractionDigits: spec.dec || 0 });
+    // Shown under the hole name: the minimum actually used for this span, plus any board note.
+    const min = spec.qFlat || (spec.q ? Math.ceil(qMin) : 0);
+    const note = [min > 1 && spec.qLabel ? `Minimum ${min.toLocaleString("en-US")} ${spec.qLabel}` : "", spec.note || ""].filter(Boolean).join(" · ");
     return {
-      id: spec.id, name: spec.name, f: spec.f,
+      id: spec.id, name: spec.name, f: spec.f, note,
       leaders: ranked.map((r) => ({ rank: r.rank, name: DATA.allPlayers[r.pi], disp: spec.pct ? fmt(r.v) + "%" : fmt(r.v) + " " + spec.unit })),
     };
   }
@@ -319,6 +322,9 @@
     // Default: show the pin player's stat, e.g. "#85 (48 TD)". Hard mode hides it.
     $("pinStat").textContent = round.tee.hard ? "" : ` (${h.cat.leaders.find((p) => p.rank === h.par).disp})`;
     $("catName").textContent = h.cat.name;
+    const note = h.cat.note ?? h.cat.n ?? "";
+    $("catNote").textContent = note;
+    $("catNote").classList.toggle("hidden", !note);
     $("listSize").textContent = maxRank(h.cat);
     $("result").classList.add("hidden");
     $("guessForm").classList.remove("hidden");

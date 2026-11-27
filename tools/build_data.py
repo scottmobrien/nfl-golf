@@ -57,6 +57,38 @@ def family(key):
     return "off"
 
 
+# Fumbles Recovered counts every player, and QBs recovering their own fumbles fill the top of it. A
+# defenders-only board fails the tie rule (all-time: 105 deep, 24% tied at 17; since 2000: 90 tied at 7,
+# 125 at 6), so it stays all-players with this note on the hole.
+FR_NOTE = "Includes offensive players (QBs often recover their own fumbles)"
+
+
+def norm_pos(text):
+    pos = re.split(r"[^A-Za-z]", text or "")[0].upper()
+    return re.sub(r"^[LR](DE|DT|CB|OLB|ILB|MLB|LB|G|T|DH)$", r"\1", pos)
+
+
+# PFR's qualifying minimums for career rate boards (checked against the listed players' career totals).
+CAREER_NOTES = {
+    **{k: "Minimum 1,500 pass attempts" for k in (
+        "pass_rating", "pass_yds_per_att", "pass_yds_per_cmp", "pass_adj_yds_per_att", "pass_net_yds_per_att",
+        "pass_adj_net_yds_per_att", "pass_cmp_perc", "pass_int_perc", "pass_td_perc", "pass_sacked_perc",
+        "pass_yds_per_g", "pass_att_per_g", "pass_cmp_per_g")},
+    "rush_yds_per_att": "Minimum 750 rushing attempts",
+    "rush_yds_per_g": "Minimum 32 games",
+    "rec_yds_per_g": "Minimum 32 games",
+    "rec_yds_per_rec": "Minimum 200 receptions",
+    "rec_yds_per_tgt": "Minimum 200 receptions",
+    "yds_per_touch": "Minimum 750 touches",
+    "fg_perc": "Minimum 100 field goal attempts",
+    "xp_perc": "Minimum 100 extra point attempts",
+    "punt_yds_per_punt": "Minimum 250 punts",
+    "kick_ret_yds_per_ret": "Minimum 75 kick returns",
+    "punt_ret_yds_per_ret": "Minimum 75 punt returns",
+    "fumbles_rec": FR_NOTE,
+}
+
+
 def board_name(key, title):
     t = re.sub(r"^NFL ", "", title)
     t = re.sub(r" Career Leaders", "", t)
@@ -134,9 +166,9 @@ SC = {k: col("scoring", *a) for k, a in dict(td=("all_td", "total_td"), pts=("sc
 GP = {"g": "player.g", "gs": "player.gs"}  # built below: a player's games/starts that season, from any table
 
 QBk = dict(cmp=[P["cmp"]], att=[P["att"]], yds=[P["yds"]], td=[P["td"]], int=[P["int"]], sk=[P["sk"]], sky=[P["sky"]])
-QB_Q = dict(q=[P["att"]], qMin=150)
-XQ = dict(q=[K["xpa"]], qFlat=5)
-FQ = dict(q=[K["fga"]], qFlat=5)  # x10 seasons = PFR's 1,500-attempt career minimum
+QB_Q = dict(q=[P["att"]], qMin=150, qLabel="pass attempts")
+XQ = dict(q=[K["xpa"]], qFlat=5, qLabel="extra point attempts")
+FQ = dict(q=[K["fga"]], qFlat=5, qLabel="field goal attempts")  # x10 seasons = PFR's 1,500-attempt career minimum
 
 # id, name, family, unit, and one of: sum | num/den (+mult, q/qMin, low, pct) | formula/k
 SPECS = [
@@ -165,26 +197,26 @@ SPECS = [
     dict(id="rush_att", name="Rushing Attempts", f="off", unit="Att", sum=[RU["att"]]),
     dict(id="rush_yds", name="Rushing Yards", f="off", unit="Yds", sum=[RU["yds"]]),
     dict(id="rush_td", name="Rushing Touchdowns", f="off", unit="TD", sum=[RU["td"]]),
-    dict(id="rush_yds_per_att", name="Yards per Rushing Attempt", f="off", unit="Y/A", dec=1, num=[RU["yds"]], den=[RU["att"]], q=[RU["att"]], qMin=75),
-    dict(id="rush_yds_per_g", name="Rushing Yards per Game", f="off", unit="Y/G", dec=1, num=[RU["yds"]], den=[RU["g"]], q=[RU["att"]], qMin=75),
+    dict(id="rush_yds_per_att", name="Yards per Rushing Attempt", f="off", unit="Y/A", dec=1, num=[RU["yds"]], den=[RU["att"]], q=[RU["att"]], qMin=75, qLabel="rushing attempts"),
+    dict(id="rush_yds_per_g", name="Rushing Yards per Game", f="off", unit="Y/G", dec=1, num=[RU["yds"]], den=[RU["g"]], q=[RU["att"]], qMin=75, qLabel="rushing attempts"),
     dict(id="rec", name="Receptions", f="off", unit="Rec", sum=[RE["rec"]]),
     dict(id="rec_yds", name="Receiving Yards", f="off", unit="Yds", sum=[RE["yds"]]),
     dict(id="rec_td", name="Receiving Touchdowns", f="off", unit="TD", sum=[RE["td"]]),
     dict(id="targets", name="Pass Targets", f="off", unit="Tgt", sum=[RE["tgt"]]),
-    dict(id="rec_yds_per_rec", name="Yards per Reception", f="off", unit="Y/R", dec=1, num=[RE["yds"]], den=[RE["rec"]], q=[RE["rec"]], qMin=20),
-    dict(id="rec_yds_per_tgt", name="Yards per Target", f="off", unit="Y/Tgt", dec=1, num=[RE["yds"]], den=[RE["tgt"]], q=[RE["tgt"]], qMin=30),
-    dict(id="rec_yds_per_g", name="Receiving Yards per Game", f="off", unit="Y/G", dec=1, num=[RE["yds"]], den=[RE["g"]], q=[RE["rec"]], qMin=20),
+    dict(id="rec_yds_per_rec", name="Yards per Reception", f="off", unit="Y/R", dec=1, num=[RE["yds"]], den=[RE["rec"]], q=[RE["rec"]], qMin=20, qLabel="receptions"),
+    dict(id="rec_yds_per_tgt", name="Yards per Target", f="off", unit="Y/Tgt", dec=1, num=[RE["yds"]], den=[RE["tgt"]], q=[RE["tgt"]], qMin=30, qLabel="targets"),
+    dict(id="rec_yds_per_g", name="Receiving Yards per Game", f="off", unit="Y/G", dec=1, num=[RE["yds"]], den=[RE["g"]], q=[RE["rec"]], qMin=20, qLabel="receptions"),
     dict(id="yds_from_scrimmage", name="Yards From Scrimmage", f="off", unit="YScm", sum=[RU["yds"], RE["yds"]]),
     dict(id="rush_receive_td", name="Rushing & Receiving Touchdowns", f="off", unit="RRTD", sum=[RU["td"], RE["td"]]),
     dict(id="touches", name="Touches", f="off", unit="Touch", sum=[RU["att"], RE["rec"]]),
-    dict(id="yds_per_touch", name="Yards per Touch", f="off", unit="Y/Tch", dec=1, num=[RU["yds"], RE["yds"]], den=[RU["att"], RE["rec"]], q=[RU["att"], RE["rec"]], qMin=50),
+    dict(id="yds_per_touch", name="Yards per Touch", f="off", unit="Y/Tch", dec=1, num=[RU["yds"], RE["yds"]], den=[RU["att"], RE["rec"]], q=[RU["att"], RE["rec"]], qMin=50, qLabel="touches"),
     dict(id="all_purpose_yds", name="All-Purpose Yards", f="off", unit="APYd", sum=[RU["yds"], RE["yds"], RT["kry"], RT["pry"]]),
     dict(id="all_td", name="Touchdowns", f="off", unit="TD", sum=[SC["td"]]),
     dict(id="def_int", name="Interceptions", f="def", unit="Int", sum=[D["def_int"]]),
     dict(id="def_int_yds", name="Interception Return Yards", f="def", unit="Yds", sum=[D["def_int_yds"]]),
     dict(id="pass_defended", name="Passes Defended", f="def", unit="PD", sum=[D["pass_defended"]]),
     dict(id="fumbles_forced", name="Fumbles Forced", f="def", unit="FF", sum=[D["fumbles_forced"]]),
-    dict(id="fumbles_rec", name="Fumbles Recovered", f="def", unit="FR", sum=[D["fumbles_rec"]]),
+    dict(id="fumbles_rec", name="Fumbles Recovered", f="def", unit="FR", sum=[D["fumbles_rec"]], note=FR_NOTE),
     dict(id="fumbles_rec_yds", name="Fumble Return Yards", f="def", unit="Yds", sum=[D["fumbles_rec_yds"]]),
     dict(id="sacks", name="Sacks", f="def", unit="Sk", dec=1, sum=[D["sacks"]]),
     dict(id="tackles_combined", name="Tackles Combined", f="def", unit="Comb", sum=[D["tackles_combined"]]),
@@ -195,18 +227,18 @@ SPECS = [
     dict(id="xpa", name="Extra Point Attempts", f="kick", unit="XPA", sum=[K["xpa"]], **XQ),
     dict(id="fgm", name="Field Goals Made", f="kick", unit="FGM", sum=[K["fgm"]], **FQ),
     dict(id="fga", name="Field Goal Attempts", f="kick", unit="FGA", sum=[K["fga"]], **FQ),
-    dict(id="xp_perc", name="Extra Point %", f="kick", pct=True, dec=1, mult=100, num=[K["xpm"]], den=[K["xpa"]], q=[K["xpa"]], qMin=10),
-    dict(id="fg_perc", name="Field Goal %", f="kick", pct=True, dec=1, mult=100, num=[K["fgm"]], den=[K["fga"]], q=[K["fga"]], qMin=10),
+    dict(id="xp_perc", name="Extra Point %", f="kick", pct=True, dec=1, mult=100, num=[K["xpm"]], den=[K["xpa"]], q=[K["xpa"]], qMin=10, qLabel="extra point attempts"),
+    dict(id="fg_perc", name="Field Goal %", f="kick", pct=True, dec=1, mult=100, num=[K["fgm"]], den=[K["fga"]], q=[K["fga"]], qMin=10, qLabel="field goal attempts"),
     dict(id="scoring", name="Points Scored", f="kick", unit="Pts", sum=[SC["pts"]]),
     dict(id="punt", name="Punts", f="punt", unit="Pnt", sum=[PU["punt"]]),
     dict(id="punt_yds", name="Punting Yards", f="punt", unit="Yds", sum=[PU["yds"]]),
-    dict(id="punt_yds_per_punt", name="Yards per Punt", f="punt", unit="Y/P", dec=1, num=[PU["yds"]], den=[PU["punt"]], q=[PU["punt"]], qMin=25),
+    dict(id="punt_yds_per_punt", name="Yards per Punt", f="punt", unit="Y/P", dec=1, num=[PU["yds"]], den=[PU["punt"]], q=[PU["punt"]], qMin=25, qLabel="punts"),
     dict(id="kick_ret", name="Kick Returns", f="ret", unit="Rt", sum=[RT["kr"]]),
     dict(id="kick_ret_yds", name="Kick Return Yards", f="ret", unit="Yds", sum=[RT["kry"]]),
-    dict(id="kick_ret_yds_per_ret", name="Yards per Kick Return", f="ret", unit="Y/Rt", dec=1, num=[RT["kry"]], den=[RT["kr"]], q=[RT["kr"]], qMin=7.5),
+    dict(id="kick_ret_yds_per_ret", name="Yards per Kick Return", f="ret", unit="Y/Rt", dec=1, num=[RT["kry"]], den=[RT["kr"]], q=[RT["kr"]], qMin=7.5, qLabel="kick returns"),
     dict(id="punt_ret", name="Punt Returns", f="ret", unit="Ret", sum=[RT["pr"]]),
     dict(id="punt_ret_yds", name="Punt Return Yards", f="ret", unit="Yds", sum=[RT["pry"]]),
-    dict(id="punt_ret_yds_per_ret", name="Yards per Punt Return", f="ret", unit="Y/R", dec=1, num=[RT["pry"]], den=[RT["pr"]], q=[RT["pr"]], qMin=7.5),
+    dict(id="punt_ret_yds_per_ret", name="Yards per Punt Return", f="ret", unit="Y/R", dec=1, num=[RT["pry"]], den=[RT["pr"]], q=[RT["pr"]], qMin=7.5, qLabel="punt returns"),
     dict(id="ret", name="Kick & Punt Returns", f="ret", unit="Rt", sum=[RT["kr"], RT["pr"]]),
     dict(id="ret_yds", name="Kick & Punt Return Yards", f="ret", unit="RtY", sum=[RT["kry"], RT["pry"]]),
     dict(id="g", name="Games", f="gen", unit="G", sum=[GP["g"]]),
@@ -253,8 +285,7 @@ for yr, pages in seasons_raw.items():
             pid, cells = r[0].lower(), r[2:]
             season_names.setdefault(pid, r[1])
             if pi is not None and cells[pi]:
-                pos = re.split(r"[^A-Za-z]", cells[pi])[0].upper()
-                season_pos[pid][re.sub(r"^[LR](DE|DT|CB|OLB|ILB|MLB|LB|G|T)$", r"\1", pos)] += 1  # RCB -> CB
+                season_pos[pid][norm_pos(cells[pi])] += 1
             season_years[pid] = (min(yr, season_years.get(pid, (yr, yr))[0]), max(yr, season_years.get(pid, (yr, yr))[1]))
             g = gp.setdefault(pid, [0, 0])
             if gi is not None: g[0] = max(g[0], cell(cells[gi]))
@@ -304,12 +335,14 @@ extra = sorted({names[p] for p in names if p not in career_ids} - set(players))
 index = {n: i for i, n in enumerate(players + extra)}
 cats = []
 for b in boards:
+    rows = b["rows"]
     leaders, prev = [], None
-    for i, r in enumerate(b["rows"]):
+    for i, r in enumerate(rows):
         rank = prev[0] if prev and prev[1] == r["value"] else i + 1
         prev = (rank, r["value"])
         leaders.append([rank, index[names[r["id"]]], r["disp"]])
-    cats.append({"id": b["id"], "name": b["name"], "f": family(b["id"]), "l": leaders})
+    cats.append({"id": b["id"], "name": b["name"], "f": family(b["id"]), "l": leaders,
+                 **({"n": CAREER_NOTES[b["id"]]} if b["id"] in CAREER_NOTES else {})})
 
 # data.json: {asOf, players: [names], categories: [{id, name, f: family, l: [[rank, player index, display value]]}]}
 with open(os.path.join(ROOT, "nfl", "data.json"), "w") as f:

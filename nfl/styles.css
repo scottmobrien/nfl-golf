@@ -162,6 +162,7 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
 .pin-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; opacity: .85; }
 .pin-rank { font-size: 32px; font-weight: 900; line-height: 1; }
 .cat-name { font-size: 28px; margin: 14px 0 4px; letter-spacing: -.5px; }
+.cat-note { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: var(--flag); }
 .cat-sub { color: var(--muted); margin: 0 0 18px; }
 
 #guessForm { display: flex; gap: 10px; }
