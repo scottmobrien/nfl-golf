@@ -592,6 +592,13 @@
   $("reteeBtn").addEventListener("click", reTee);
   $("reteeFinalBtn").addEventListener("click", reTee);
 
+  // The logo goes home too: same as ← Home during a round, a plain jump from the final screen.
+  $("brandLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!$("hole").classList.contains("hidden")) $("homeBtn").click();
+    else { renderDailyCard(); show("setup"); }
+  });
+
   // Back to the home screen mid-round. The Daily 9 keeps its progress (resume from the card).
   $("homeBtn").addEventListener("click", () => {
     const played = round.holes.some((h) => h.strokes != null);

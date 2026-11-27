@@ -7,6 +7,7 @@ create table if not exists public.daily_scores (
   day        date        not null,
   name       text        not null check (char_length(btrim(name)) between 1 and 20),
   score      numeric(5,1) not null check (score between 0 and 900),
+  hard       boolean     not null default false,  -- played in Hard mode (pin stat hidden)
   device     uuid        not null,
   created_at timestamptz not null default now(),
   unique (day, device)
