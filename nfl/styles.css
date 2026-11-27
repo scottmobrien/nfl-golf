@@ -214,6 +214,7 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
 .scorecard td.row-head, .scorecard th.row-head { text-align: left; font-weight: 700; color: var(--ink); background: #f2f1ea; }
 .scorecard td.current { outline: 2px solid var(--fairway); outline-offset: -2px; }
 .scorecard td.ace { color: var(--good); font-weight: 900; }
+.scorecard td.under { color: var(--good); font-weight: 700; }
 .scorecard td.ob { color: var(--bad); font-weight: 700; }
 .scorecard .sc-name { display: block; margin-top: 2px; font-size: 11px; font-weight: 500; color: var(--muted); white-space: normal; line-height: 1.25; min-width: 80px; }
 .scorecard td.ob .sc-name { color: var(--bad); }

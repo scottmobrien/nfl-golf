@@ -140,6 +140,14 @@
   const OB_POINTS = 100;
   const pts = (x) => Math.round(x * 10) / 10;
   const fmtPts = (x) => (Number.isInteger(x) ? String(x) : x.toFixed(1));
+  // Golf scoring: every hole is a par 4. The miss (as a % of the list, kept in h.strokes) sets the result;
+  // big misses cap at triple bogey, and OB (player not on the list) is +5.
+  const OB_TO_PAR = 5;
+  const parFromPts = (p, ob) =>
+    ob || p >= OB_POINTS ? OB_TO_PAR : p === 0 ? -3 : p <= 1 ? -2 : p <= 3 ? -1 : p <= 7 ? 0 : p <= 15 ? 1 : p <= 30 ? 2 : 3;
+  const toPar = (h) => parFromPts(h.strokes, h.ob);
+  const fmtPar = (n) => (n === 0 ? "E" : n > 0 ? `+${n}` : `−${-n}`);
+  const HOLE_PAR = 4;
 
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
@@ -196,7 +204,8 @@
     };
   }
 
-  const total = () => pts(round.holes.reduce((s, h) => s + (h.strokes ?? 0), 0));
+  const total = () => pts(round.holes.reduce((s, h) => s + (h.strokes ?? 0), 0)); // miss %, the tiebreak
+  const totalPar = () => round.holes.reduce((s, h) => s + (h.strokes == null ? 0 : toPar(h)), 0);
   const maxRank = (cat) => cat.leaders[cat.leaders.length - 1].rank;
 
   // ---------- screens ----------
@@ -317,7 +326,7 @@
     $("guessInput").disabled = false;
     $("guessBtn").disabled = false;
     hideAc();
-    $("totalScore").textContent = fmtPts(total());
+    $("totalScore").textContent = fmtPar(totalPar());
     renderScorecard($("scorecard"), true);
     setTimeout(() => $("guessInput").focus(), 50);
   }
@@ -376,7 +385,7 @@
     if (s <= 7) return ["Par", ""];
     if (s <= 15) return ["Bogey", ""];
     if (s <= 30) return ["Double bogey", "bad"];
-    return ["Triple bogey+", "bad"];
+    return ["Triple bogey", "bad"];
   }
 
   function renderResult(h) {
@@ -388,7 +397,7 @@
     const [txt, cls] = label(h);
     $("resultLabel").textContent = txt;
     $("resultLabel").className = "result-label " + cls;
-    $("resultStrokes").textContent = fmtPts(h.strokes);
+    $("resultStrokes").textContent = fmtPar(toPar(h));
 
     const pinNames = h.pinNames;
     const atPin = pinNames.length <= 3
@@ -411,7 +420,7 @@
 
     $("nextBtn").textContent = round.idx === round.holes.length - 1 ? "Finish round →" : "Next hole →";
     $("result").classList.remove("hidden");
-    $("totalScore").textContent = fmtPts(total());
+    $("totalScore").textContent = fmtPar(totalPar());
     renderScorecard($("scorecard"), true);
 
     // scroll the board so the pin is visible
@@ -439,33 +448,34 @@
     const who = (name) => `<span class="sc-name">${esc(name)}</span>`;
     const pins = `<tr><td class="row-head">Pin</td>${hs.map((h, i) => cell(h, i, "#" + h.par + (h.strokes == null ? "" : who(h.pinName)))).join("")}<td></td></tr>`;
     const hits = `<tr><td class="row-head">Hit</td>${hs.map((h, i) => cell(h, i, h.strokes == null ? "" : (h.ob ? "OB" : "#" + h.guessRank) + who(h.guess), h.ob ? "ob" : "")).join("")}<td></td></tr>`;
-    const strokes = `<tr><td class="row-head">Points</td>${hs.map((h, i) => cell(h, i, h.strokes == null ? "" : fmtPts(h.strokes), h.strokes === 0 ? "ace" : h.ob ? "ob" : "")).join("")}<td><b>${fmtPts(total())}</b></td></tr>`;
+    const strokes = `<tr><td class="row-head">Score</td>${hs.map((h, i) => cell(h, i, h.strokes == null ? "" : fmtPar(toPar(h)), h.strokes === 0 ? "ace" : h.ob ? "ob" : toPar(h) < 0 ? "under" : "")).join("")}<td><b>${fmtPar(totalPar())}</b></td></tr>`;
     const ch = round.tee.challenge;
     const rival = ch && !live
-      ? `<tr class="rival-row"><td class="row-head">Rival</td>${hs.map((h, i) => cell(h, i, fmtPts(ch.s[i]), ch.s[i] < h.strokes ? "beat" : "")).join("")}<td><b>${fmtPts(pts(ch.s.reduce((a, b) => a + b, 0)))}</b></td></tr>`
+      ? `<tr class="rival-row"><td class="row-head">Rival</td>${hs.map((h, i) => cell(h, i, fmtPar(parFromPts(ch.s[i])), parFromPts(ch.s[i]) < toPar(h) ? "beat" : "")).join("")}<td><b>${fmtPar(rivalPar(ch))}</b></td></tr>`
       : "";
     table.innerHTML = head + cats + pins + hits + strokes + rival;
   }
 
   // ---------- final ----------
+  const rivalPar = (ch) => ch.s.reduce((a, p) => a + parFromPts(p), 0);
   function finish() {
-    const n = round.holes.length, t = total(), avg = t / n;
-    $("finalScore").textContent = fmtPts(t);
-    $("finalHoles").textContent = n;
+    const n = round.holes.length, t = totalPar(), avg = t / n;
+    $("finalScore").textContent = fmtPar(t);
+    $("finalSub").textContent = `to par over ${n} holes · shot ${n * HOLE_PAR + t} on a par-${n * HOLE_PAR} course`;
     $("finalTee").textContent = teeText(round.tee);
     const aces = round.holes.filter((h) => h.strokes === 0).length;
     const [rank, blurb] =
-      avg <= 2 ? ["Tour Pro", "You know these leaderboards cold."] :
-      avg <= 5 ? ["Scratch Golfer", "Seriously impressive."] :
-      avg <= 10 ? ["Club Champion", "A solid, respectable round."] :
-      avg <= 20 ? ["Weekend Hacker", "Some good swings in there."] :
+      avg <= -0.5 ? ["Tour Pro", "You know these leaderboards cold."] :
+      avg <= 0.25 ? ["Scratch Golfer", "Seriously impressive."] :
+      avg <= 1 ? ["Club Champion", "A solid, respectable round."] :
+      avg <= 2 ? ["Weekend Hacker", "Some good swings in there."] :
       ["Beer Cart Regular", "Rough day on the links."];
-    let verdict = `${avg.toFixed(1)} points per hole. ${blurb}`;
+    let verdict = `${avg === 0 ? "Even" : (avg > 0 ? "+" : "−") + Math.abs(avg).toFixed(1)} per hole. ${blurb}`;
     if (aces) verdict += ` ${aces} hole${aces > 1 ? "s" : ""}-in-one!`;
     $("finalRank").textContent = rank;
     $("finalVerdict").textContent = verdict;
     renderScorecard($("finalCard"), false);
-    $("totalScore").textContent = fmtPts(t);
+    $("totalScore").textContent = fmtPar(t);
     $("shareText").hidden = true;
     $("dailyBoard").classList.toggle("hidden", !round.tee.daily);
     $("reteeFinalBtn").classList.toggle("hidden", !!round.tee.daily);
@@ -473,10 +483,10 @@
     const ch = round.tee.challenge;
     $("challengeResult").classList.toggle("hidden", !ch);
     if (ch) {
-      const theirs = pts(ch.s.reduce((a, b) => a + b, 0)), diff = pts(Math.abs(theirs - t));
+      const theirs = rivalPar(ch), diff = Math.abs(theirs - t), strokes = `${diff} stroke${diff === 1 ? "" : "s"}`;
       ch.outcome = t < theirs ? "Won" : t > theirs ? "Lost" : "Tied";
       $("challengeResult").innerHTML = `<b>${t < theirs ? "You win!" : t > theirs ? "Your challenger wins." : "All square!"}</b> `
-        + `Your challenger shot ${fmtPts(theirs)}${t === theirs ? " too" : `, you ${t < theirs ? "beat them" : "were behind"} by ${fmtPts(diff)}`}.`;
+        + `Your challenger shot ${fmtPar(theirs)}${t === theirs ? " too" : `, you ${t < theirs ? "beat them" : "were behind"} by ${strokes}`}.`;
       // Done with the link: a refresh shouldn't offer the same challenge again.
       history.replaceState(null, "", location.pathname);
       $("challengeCard").classList.add("hidden");
@@ -486,26 +496,27 @@
   }
 
   function shareText() {
-    const icon = (h) => h.ob ? "🟥" : h.strokes === 0 ? "⛳" : h.strokes <= 3 ? "🟩" : h.strokes <= 15 ? "🟨" : "🟧";
+    const icon = (h) => { const p = toPar(h); return h.ob ? "🟥" : p === -3 ? "⛳" : p < 0 ? "🟩" : p === 0 ? "⬜" : p === 1 ? "🟨" : "🟧"; };
+    const res = (h) => `${label(h)[0].replace("!", "")} (${fmtPar(toPar(h))})`;
     if (round.tee.daily) {
       // No player names: friends may not have played today's course yet.
       return [
-        `NFL Golf ⛳ The Daily 9 #${round.tee.num} — ${fmtPts(total())} points (${$("finalRank").textContent})`,
+        `NFL Golf ⛳ The Daily 9 #${round.tee.num} — ${fmtPar(totalPar())} (${$("finalRank").textContent})`,
         round.holes.map(icon).join(""),
         "",
-        ...round.holes.map((h, i) => `${i + 1}. ${h.cat.name} · pin #${h.par} — ${icon(h)} ${fmtPts(h.strokes)}`),
+        ...round.holes.map((h, i) => `${i + 1}. ${h.cat.name} · pin #${h.par} — ${icon(h)} ${res(h)}`),
         "",
         location.origin + location.pathname,
       ].join("\n");
     }
     const holes = round.holes.map((h, i) => [
-      `${i + 1}. ${h.cat.name.replace(/^Career /, "")} — ${icon(h)} ${fmtPts(h.strokes)} pts`,
+      `${i + 1}. ${h.cat.name.replace(/^Career /, "")} — ${icon(h)} ${res(h)}`,
       `   Pin: #${h.par} ${h.pinName}`,
       `   Hit: ${h.ob ? "OB" : "#" + h.guessRank} ${h.guess}`,
     ].join("\n"));
     return [
-      `NFL Golf ⛳ ${teeText(round.tee)} · ${round.holes.length} holes — ${fmtPts(total())} points (${$("finalRank").textContent})`
-        + (round.tee.challenge ? ` · ${round.tee.challenge.outcome} vs. ${fmtPts(pts(round.tee.challenge.s.reduce((a, b) => a + b, 0)))}` : ""),
+      `NFL Golf ⛳ ${teeText(round.tee)} · ${round.holes.length} holes — ${fmtPar(totalPar())} (${$("finalRank").textContent})`
+        + (round.tee.challenge ? ` · ${round.tee.challenge.outcome} vs. ${fmtPar(rivalPar(round.tee.challenge))}` : ""),
       round.holes.map(icon).join(""),
       "",
       ...holes,
@@ -643,9 +654,9 @@
   function showChallengeCard() {
     const c = pendingChallenge;
     if (!c) return;
-    const t = teeFromChallenge(c), theirs = pts(c.s.reduce((a, b) => a + b, 0));
+    const t = teeFromChallenge(c), theirs = rivalPar(c);
     $("challengeWhat").textContent = `${t.label} · ${spanText(t)} · ${c.h.length} holes${t.hard ? " · Hard mode" : ""}`;
-    $("challengeNote").textContent = `Your challenger shot ${fmtPts(theirs)} points. Same holes, same pins. Can you beat it?`;
+    $("challengeNote").textContent = `Your challenger shot ${fmtPar(theirs)}. Same holes, same pins. Can you beat it?`;
     $("challengeCard").classList.remove("hidden");
   }
   async function startChallenge() {
@@ -673,7 +684,7 @@
   $("challengeBtn").addEventListener("click", startChallenge);
   $("challengeSendBtn").addEventListener("click", async () => {
     const url = challengeLink(), btn = $("challengeSendBtn");
-    const text = `I shot ${fmtPts(total())} on NFL Golf (${teeText({ ...round.tee, challenge: null })}, ${round.holes.length} holes). Same holes, same pins. Can you beat me?`;
+    const text = `I shot ${fmtPar(totalPar())} on NFL Golf (${teeText({ ...round.tee, challenge: null })}, ${round.holes.length} holes). Same holes, same pins. Can you beat me?`;
     if (navigator.share) {
       try { await navigator.share({ title: "NFL Golf challenge", text, url }); return; }
       catch (e) { if (e.name === "AbortError") return; }
@@ -698,15 +709,16 @@
     } catch { return crypto.randomUUID(); }
   })();
   async function lbFetch(date) {
-    const q = `day=eq.${date}&select=name,score,hard,device&order=score.asc,created_at.asc&limit=5000`;
+    // Ranked by strokes to par; the miss % (score) breaks ties. Rows posted before golf scoring have no to_par.
+    const q = `day=eq.${date}&select=name,score,to_par,hard,device&order=to_par.asc.nullslast,score.asc,created_at.asc&limit=5000`;
     const r = await fetch(`${LB.url}/rest/v1/daily_scores?${q}`, { headers: lbHeaders });
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
   }
-  async function lbPost(date, name, score, hard) {
+  async function lbPost(date, name, score, toParTotal, hard) {
     const r = await fetch(`${LB.url}/rest/v1/daily_scores`, {
       method: "POST", headers: { ...lbHeaders, Prefer: "return=minimal" },
-      body: JSON.stringify({ day: date, name, score, hard: !!hard, device: deviceId }),
+      body: JSON.stringify({ day: date, name, score, to_par: toParTotal, hard: !!hard, device: deviceId }),
     });
     // 409 = this device already posted today; treat as posted.
     if (!r.ok && r.status !== 409) throw new Error("HTTP " + r.status);
@@ -730,7 +742,7 @@
       const btn = $("postForm").querySelector("button");
       btn.disabled = true;
       try {
-        await lbPost(round.tee.daily, name, total(), round.tee.hard);
+        await lbPost(round.tee.daily, name, total(), totalPar(), round.tee.hard);
         try { localStorage.setItem("nflgolf.name", name); } catch {}
         saveDaily({ ...(loadDaily() || { date: round.tee.daily, picks: [] }), posted: true, name });
         renderBoardPanel();
@@ -739,14 +751,16 @@
     try {
       const rows = await lbFetch(d.date || todayET());
       let rank = 0, prev = null;
-      const ranked = rows.map((r, i) => ({ ...r, rank: prev !== null && r.score === prev ? rank : (rank = i + 1, prev = r.score, rank) }));
+      // Same strokes to par and same miss % share a rank; otherwise the closer round ranks higher.
+      const key = (r) => `${r.to_par ?? "x"}|${r.score}`;
+      const ranked = rows.map((r, i) => ({ ...r, rank: prev !== null && key(r) === prev ? rank : (rank = i + 1, prev = key(r), rank) }));
       const mine = ranked.find((r) => r.device === deviceId);
       $("lbMsg").textContent = !rows.length ? "No scores yet. Be the first."
         : (mine ? `You're #${mine.rank} of ${rows.length} today.` : `${rows.length} golfer${rows.length === 1 ? "" : "s"} today.`)
           + (rows.some((r) => r.hard) ? " 🔥 = Hard mode." : "");
       const top = ranked.slice(0, 25);
       if (mine && !top.includes(mine)) top.push(mine);
-      $("lbList").innerHTML = top.map((r) => `<li class="${r === mine ? "me" : ""}"><span class="rk">#${r.rank}</span><span>${esc(r.name)}${r.hard ? ' <span class="hard-flag" title="Hard mode">🔥</span>' : ""}</span><span class="val">${fmtPts(+r.score)}</span></li>`).join("");
+      $("lbList").innerHTML = top.map((r) => `<li class="${r === mine ? "me" : ""}"><span class="rk">#${r.rank}</span><span>${esc(r.name)}${r.hard ? ' <span class="hard-flag" title="Hard mode">🔥</span>' : ""}</span><span class="val">${r.to_par == null ? "—" : fmtPar(r.to_par)}</span></li>`).join("");
     } catch (err) { $("lbMsg").textContent = `Couldn't load the leaderboard (${err.message}).`; }
   }
 

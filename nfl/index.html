@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="claude:viewport-fit-sides" content="cover">
   <title>NFL Golf</title>
-  <link rel="stylesheet" href="styles.css?v=16" />
+  <link rel="stylesheet" href="styles.css?v=17" />
 </head>
 <body>
   <header class="topbar">
@@ -137,7 +137,7 @@
               <div id="resultLabel" class="result-label">Birdie</div>
               <div id="resultDetail" class="result-detail"></div>
             </div>
-            <div class="strokes"><span id="resultStrokes">0</span><small>points</small></div>
+            <div class="strokes"><span id="resultStrokes">0</span><small>to par</small></div>
           </div>
           <ol id="board" class="board"></ol>
           <button id="nextBtn" class="primary wide">Next hole →</button>
@@ -154,7 +154,7 @@
     <section id="final" class="screen hidden">
       <div class="card hero">
         <div class="final-label">Round complete · <span id="finalTee"></span></div>
-        <div class="final-score"><span id="finalScore">0</span><small>points over <span id="finalHoles">9</span> holes</small></div>
+        <div class="final-score"><span id="finalScore">0</span><small id="finalSub"></small></div>
         <div id="finalRank" class="final-rank"></div>
         <p id="finalVerdict" class="lede final-verdict"></p>
         <div class="scorecard-scroll"><table id="finalCard" class="scorecard"></table></div>
@@ -172,6 +172,6 @@
   </main>
 
   <script src="leaderboard-config.js?v=11"></script>
-  <script src="app.js?v=21"></script>
+  <script src="app.js?v=22"></script>
 </body>
 </html>
