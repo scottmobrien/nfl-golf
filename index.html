@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="claude:viewport-fit-sides" content="cover">
   <title>NFL Golf</title>
-  <link rel="stylesheet" href="styles.css?v=14" />
+  <link rel="stylesheet" href="styles.css?v=15" />
 </head>
 <body>
   <header class="topbar">
@@ -23,6 +23,16 @@
   <main>
     <!-- Setup -->
     <section id="setup" class="screen">
+      <div id="challengeCard" class="card challenge-card hidden">
+        <div class="daily-head">
+          <div>
+            <div class="daily-kicker">🏌️ You've been challenged!</div>
+            <div class="daily-date" id="challengeWhat"></div>
+          </div>
+          <button id="challengeBtn" class="primary">Accept challenge</button>
+        </div>
+        <p class="fine daily-note" id="challengeNote"></p>
+      </div>
       <div class="card daily-card">
         <div class="daily-head">
           <div>
@@ -149,9 +159,11 @@
         <p id="finalVerdict" class="lede final-verdict"></p>
         <div class="scorecard-scroll"><table id="finalCard" class="scorecard"></table></div>
         <textarea id="shareText" class="share-text" rows="12" readonly hidden aria-label="Your scorecard"></textarea>
+        <div id="challengeResult" class="challenge-result hidden"></div>
         <div id="dailyBoard" class="daily-board hidden"></div>
         <div class="final-actions">
           <button id="shareBtn" class="ghost">Share your card</button>
+          <button id="challengeSendBtn" class="ghost" title="Send a friend a link to this exact course">⚔️ Challenge</button>
           <button id="reteeFinalBtn" class="ghost" title="Play a fresh course with the same settings">↺ Re-Tee</button>
           <button id="againBtn" class="primary">Play again</button>
         </div>
@@ -160,6 +172,6 @@
   </main>
 
   <script src="leaderboard-config.js?v=10"></script>
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>

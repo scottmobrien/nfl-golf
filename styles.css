@@ -149,6 +149,11 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
 .bar-btn { background: rgba(0,0,0,.28); color: #fff; padding: 7px 14px; border-radius: 999px; font-size: 14px; font-weight: 700; }
 .bar-btn:hover { background: rgba(0,0,0,.45); }
 
+.challenge-card { border: 2px solid var(--flag); background: linear-gradient(135deg, #fff4f2, var(--card)); }
+.challenge-result { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: #fff4f2; border: 1px solid #f3c9c3; font-size: 16px; }
+.scorecard .rival-row td { color: var(--muted); background: #faf9f4; }
+.scorecard .rival-row td.beat { color: var(--bad); font-weight: 700; }
+
 .hole-head { display: flex; justify-content: space-between; align-items: center; }
 .hole-num { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 .hole-num span:first-child { color: var(--ink); font-size: 22px; }
@@ -221,7 +226,7 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
   background: var(--turf); color: var(--gold); font-size: 22px; font-weight: 900; letter-spacing: .5px;
 }
 .final-verdict { margin-top: 8px; }
-.final-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+.final-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; margin-top: 20px; }
 
 @media (max-width: 560px) {
   h1 { font-size: 32px; }

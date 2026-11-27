@@ -221,7 +221,7 @@
     return { id, label: t.label, fams: t.fams, from: t.from, to: t.from ? last : undefined, present: !!t.from };
   }
   const spanText = (t) => (t.from ? `${t.from}–${t.present ? "present" : t.to}` : "All time");
-  const teeText = (t) => (t.daily ? `The Daily 9 #${t.num} · Members Tees` : `${t.label} · ${spanText(t)}`) + (t.hard ? " · Hard mode" : "");
+  const teeText = (t) => (t.challenge ? "Challenge · " : "") + (t.daily ? `The Daily 9 #${t.num} · Members Tees` : `${t.label} · ${spanText(t)}`) + (t.hard ? " · Hard mode" : "");
 
   // ---------- daily course ----------
   // Everyone gets the same 9 Members Tees holes each day (US Eastern date), seeded from the date.
@@ -440,7 +440,11 @@
     const pins = `<tr><td class="row-head">Pin</td>${hs.map((h, i) => cell(h, i, "#" + h.par + (h.strokes == null ? "" : who(h.pinName)))).join("")}<td></td></tr>`;
     const hits = `<tr><td class="row-head">Hit</td>${hs.map((h, i) => cell(h, i, h.strokes == null ? "" : (h.ob ? "OB" : "#" + h.guessRank) + who(h.guess), h.ob ? "ob" : "")).join("")}<td></td></tr>`;
     const strokes = `<tr><td class="row-head">Points</td>${hs.map((h, i) => cell(h, i, h.strokes == null ? "" : fmtPts(h.strokes), h.strokes === 0 ? "ace" : h.ob ? "ob" : "")).join("")}<td><b>${fmtPts(total())}</b></td></tr>`;
-    table.innerHTML = head + cats + pins + hits + strokes;
+    const ch = round.tee.challenge;
+    const rival = ch && !live
+      ? `<tr class="rival-row"><td class="row-head">Rival</td>${hs.map((h, i) => cell(h, i, fmtPts(ch.s[i]), ch.s[i] < h.strokes ? "beat" : "")).join("")}<td><b>${fmtPts(pts(ch.s.reduce((a, b) => a + b, 0)))}</b></td></tr>`
+      : "";
+    table.innerHTML = head + cats + pins + hits + strokes + rival;
   }
 
   // ---------- final ----------
@@ -465,6 +469,18 @@
     $("shareText").hidden = true;
     $("dailyBoard").classList.toggle("hidden", !round.tee.daily);
     $("reteeFinalBtn").classList.toggle("hidden", !!round.tee.daily);
+    $("challengeSendBtn").classList.toggle("hidden", !!round.tee.daily);
+    const ch = round.tee.challenge;
+    $("challengeResult").classList.toggle("hidden", !ch);
+    if (ch) {
+      const theirs = pts(ch.s.reduce((a, b) => a + b, 0)), diff = pts(Math.abs(theirs - t));
+      ch.outcome = t < theirs ? "Won" : t > theirs ? "Lost" : "Tied";
+      $("challengeResult").innerHTML = `<b>${t < theirs ? "You win!" : t > theirs ? "Your challenger wins." : "All square!"}</b> `
+        + `Your challenger shot ${fmtPts(theirs)}${t === theirs ? " too" : `, you ${t < theirs ? "beat them" : "were behind"} by ${fmtPts(diff)}`}.`;
+      // Done with the link: a refresh shouldn't offer the same challenge again.
+      history.replaceState(null, "", location.pathname);
+      $("challengeCard").classList.add("hidden");
+    }
     if (round.tee.daily) renderBoardPanel();
     show("final");
   }
@@ -488,7 +504,8 @@
       `   Hit: ${h.ob ? "OB" : "#" + h.guessRank} ${h.guess}`,
     ].join("\n"));
     return [
-      `NFL Golf ⛳ ${teeText(round.tee)} · ${round.holes.length} holes — ${fmtPts(total())} points (${$("finalRank").textContent})`,
+      `NFL Golf ⛳ ${teeText(round.tee)} · ${round.holes.length} holes — ${fmtPts(total())} points (${$("finalRank").textContent})`
+        + (round.tee.challenge ? ` · ${round.tee.challenge.outcome} vs. ${fmtPts(pts(round.tee.challenge.s.reduce((a, b) => a + b, 0)))}` : ""),
       round.holes.map(icon).join(""),
       "",
       ...holes,
@@ -565,7 +582,7 @@
 
   // Re-Tee: a fresh course with the same tee, years, categories, hole count and Hard mode.
   function reTee() {
-    const t = round.tee, n = round.holes.length;
+    const t = { ...round.tee, challenge: null }, n = round.holes.length;
     if (t.daily) return;
     const played = round.holes.some((h) => h.strokes != null) && !round.holes.every((h) => h.strokes != null);
     if (played && !confirm("Start over from hole 1 with a fresh course? This round's scores will be lost.")) return;
@@ -590,6 +607,77 @@
       .catch(() => { box.hidden = false; box.focus(); box.select(); $("shareBtn").textContent = "Select and copy below"; });
     setTimeout(() => ($("shareBtn").textContent = "Share your card"), 2000);
   });
+  // ---------- challenges ----------
+  // A challenge link carries the whole course: tee settings, [board id, pin] per hole, and the sender's points.
+  const enc64 = (o) => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(o))))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const dec64 = (s) => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0))));
+
+  function challengeLink() {
+    const t = round.tee;
+    const spec = {
+      v: 1,
+      t: { id: t.id, l: t.label, f: t.fams, from: t.from || 0, to: t.from && !t.present ? t.to : 0, hard: t.hard ? 1 : 0 },
+      h: round.holes.map((h) => [h.cat.id, h.par]),
+      s: round.holes.map((h) => h.strokes),
+    };
+    return `${location.origin}${location.pathname}?challenge=${enc64(spec)}`;
+  }
+
+  let pendingChallenge = null;
+  function teeFromChallenge(c) {
+    const T = c.t, last = SEASONS ? SEASONS.years[1] : DATA.lastSeason;
+    return {
+      id: T.id, label: T.l || (TEES[T.id] || {}).label || "NFL Golf", fams: T.f,
+      from: T.from || undefined, to: T.from ? T.to || last : undefined, present: !!T.from && !T.to,
+      hard: !!T.hard, challenge: c,
+    };
+  }
+  function showChallengeCard() {
+    const c = pendingChallenge;
+    if (!c) return;
+    const t = teeFromChallenge(c), theirs = pts(c.s.reduce((a, b) => a + b, 0));
+    $("challengeWhat").textContent = `${t.label} · ${spanText(t)} · ${c.h.length} holes${t.hard ? " · Hard mode" : ""}`;
+    $("challengeNote").textContent = `Your challenger shot ${fmtPts(theirs)} points. Same holes, same pins. Can you beat it?`;
+    $("challengeCard").classList.remove("hidden");
+  }
+  async function startChallenge() {
+    const c = pendingChallenge;
+    if (c.t.from && !SEASONS) {
+      $("challengeBtn").disabled = true;
+      try { await loadSeasons(); } catch (e) { $("challengeBtn").disabled = false; $("challengeNote").textContent = `Couldn't load season stats (${e.message}). Try again.`; return; }
+      $("challengeBtn").disabled = false;
+    }
+    const t = teeFromChallenge(c), cats = boardsFor(t);
+    const holes = c.h.map(([id, par]) => {
+      const cat = cats.find((x) => x.id === id);
+      if (!cat) return null;
+      // If the stats were refreshed since the link was made, snap to the nearest rank that still exists.
+      const pin = cat.leaders.reduce((best, p) => (Math.abs(p.rank - par) < Math.abs(best.rank - par) ? p : best));
+      return { cat, par: pin.rank, guess: null, strokes: null, ob: false };
+    });
+    if (holes.includes(null)) { $("challengeNote").textContent = "This challenge uses a leaderboard that's no longer in the game. Ask for a new link."; return; }
+    currentTee = t;
+    POOL = t.from ? POOL_ALL : POOL_CAREER;
+    round = { idx: 0, tee: t, holes };
+    beginRound(t, holes.length);
+  }
+
+  $("challengeBtn").addEventListener("click", startChallenge);
+  $("challengeSendBtn").addEventListener("click", async () => {
+    const url = challengeLink(), btn = $("challengeSendBtn");
+    const text = `I shot ${fmtPts(total())} on NFL Golf (${teeText({ ...round.tee, challenge: null })}, ${round.holes.length} holes). Same holes, same pins. Can you beat me?`;
+    if (navigator.share) {
+      try { await navigator.share({ title: "NFL Golf challenge", text, url }); return; }
+      catch (e) { if (e.name === "AbortError") return; }
+    }
+    const box = $("shareText");
+    box.value = `${text}\n${url}`;
+    try { await navigator.clipboard.writeText(box.value); btn.textContent = "Link copied!"; box.hidden = true; }
+    catch { box.hidden = false; box.focus(); box.select(); btn.textContent = "Copy the link below"; }
+    setTimeout(() => (btn.textContent = "⚔️ Challenge"), 2000);
+  });
+
   // ---------- daily leaderboard (Supabase) ----------
   const LB = window.NFLGOLF_LEADERBOARD || {};
   const lbOn = !!(LB.url && LB.key);
@@ -711,5 +799,13 @@
   $("hardMode").addEventListener("change", () => { try { localStorage.setItem("nflgolf.hard", $("hardMode").checked ? "1" : "0"); } catch {} });
   setChoices(true);
   renderDailyCard();
+  // Opened from a challenge link?
+  try {
+    const raw = new URLSearchParams(location.search).get("challenge");
+    if (raw) {
+      const c = dec64(raw);
+      if (c && c.v === 1 && Array.isArray(c.h) && c.h.length && c.s.length === c.h.length) { pendingChallenge = c; showChallengeCard(); }
+    }
+  } catch { /* a mangled link just opens the normal home screen */ }
   }
 })();
