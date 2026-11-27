@@ -34,6 +34,13 @@ body {
 .brand { font-weight: 800; font-size: 22px; letter-spacing: .5px; }
 .brand em { font-style: normal; color: var(--gold); }
 .flag { margin-right: 4px; }
+.hard-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; cursor: pointer; user-select: none; }
+.hard-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.hard-toggle .switch { width: 36px; height: 20px; border-radius: 999px; background: rgba(255,255,255,.25); position: relative; transition: background .15s; }
+.hard-toggle .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.hard-toggle input:checked + .switch { background: var(--flag); }
+.hard-toggle input:checked + .switch::after { transform: translateX(16px); }
+.hard-toggle input:focus-visible + .switch { outline: 3px solid var(--gold); outline-offset: 2px; }
 .total-badge { background: rgba(0,0,0,.3); padding: 6px 14px; border-radius: 999px; font-size: 14px; }
 .total-badge strong { font-size: 18px; margin-left: 4px; color: var(--gold); }
 

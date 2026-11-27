@@ -5,11 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="claude:viewport-fit-sides" content="cover">
   <title>NFL Golf</title>
-  <link rel="stylesheet" href="styles.css?v=11" />
+  <link rel="stylesheet" href="styles.css?v=12" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="flag">⛳</span> NFL <em>Golf</em></div>
+    <label id="hardToggle" class="hard-toggle" title="Hard mode hides the pin player's stat">
+      <input type="checkbox" id="hardMode" /> <span class="switch" aria-hidden="true"></span> Hard mode
+    </label>
     <div id="totalBadge" class="total-badge hidden">Score <strong id="totalScore">0</strong></div>
   </header>
 
@@ -100,7 +103,7 @@
         </div>
         <div id="holeTee" class="hole-tee"></div>
         <h2 id="catName" class="cat-name">Category</h2>
-        <p class="cat-sub">Ranked list goes to <b>#<span id="listSize">50</span></b>. Find the player ranked <b>#<span id="parRank2">1</span></b> — or as close as you can.</p>
+        <p class="cat-sub">Ranked list goes to <b>#<span id="listSize">50</span></b>. Find the player ranked <b>#<span id="parRank2">1</span></b><span id="pinStat"></span> — or as close as you can.</p>
 
         <form id="guessForm" autocomplete="off">
           <div class="ac-wrap">
@@ -148,6 +151,6 @@
   </main>
 
   <script src="leaderboard-config.js?v=10"></script>
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

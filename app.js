@@ -203,6 +203,7 @@
   function show(id) {
     ["setup", "hole", "final"].forEach((s) => $(s).classList.toggle("hidden", s !== id));
     $("totalBadge").classList.toggle("hidden", id === "setup");
+    $("hardToggle").classList.toggle("hidden", id !== "setup");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -220,7 +221,7 @@
     return { id, label: t.label, fams: t.fams, from: t.from, to: t.from ? last : undefined, present: !!t.from };
   }
   const spanText = (t) => (t.from ? `${t.from}–${t.present ? "present" : t.to}` : "All time");
-  const teeText = (t) => (t.daily ? `The Daily 9 #${t.num} · Members Tees` : `${t.label} · ${spanText(t)}`);
+  const teeText = (t) => (t.daily ? `The Daily 9 #${t.num} · Members Tees` : `${t.label} · ${spanText(t)}`) + (t.hard ? " · Hard mode" : "");
 
   // ---------- daily course ----------
   // Everyone gets the same 9 Members Tees holes each day (US Eastern date), seeded from the date.
@@ -255,6 +256,10 @@
       $("dailyBtn").disabled = false;
     }
     const t = dailyTee(date);
+    const saved = loadDaily() || { date, picks: [] };
+    // Hard mode is locked in once today's round has started.
+    t.hard = saved.picks.length ? !!saved.hard : $("hardMode").checked;
+    saveDaily({ ...saved, hard: t.hard });
     currentTee = t;
     POOL = POOL_ALL;
     // The Daily 9 #1 launched with uniform pins; keep it so saved rounds replay the same course.
@@ -262,7 +267,6 @@
     $("holeTee").textContent = teeText(t);
     $("holeCount").textContent = 9;
     // Replay saved swings so a refresh can't re-roll a hole.
-    const saved = loadDaily() || { date, picks: [] };
     saved.picks.forEach((r, i) => { round.idx = i; scoreGuess(round.holes[i], r); });
     round.idx = Math.min(saved.picks.length, 8);
     if (saved.picks.length >= 9) { finish(); return; }
@@ -282,6 +286,7 @@
     if (t.id === "red" && t.from > t.to) { redNote("The starting year is after the ending year.", true); return; }
     const cats = boardsFor(t);
     if (!cats.length) { redNote("Not enough players on any leaderboard for that span. Widen the years or add categories.", true); return; }
+    t.hard = $("hardMode").checked;
     currentTee = t;
     POOL = t.from ? POOL_ALL : POOL_CAREER;
     round = buildRound(n, cats);
@@ -296,6 +301,8 @@
     $("holeNum").textContent = round.idx + 1;
     $("parRank").textContent = h.par;
     $("parRank2").textContent = h.par;
+    // Default: show the pin player's stat, e.g. "#85 (48 TD)". Hard mode hides it.
+    $("pinStat").textContent = round.tee.hard ? "" : ` (${h.cat.leaders.find((p) => p.rank === h.par).disp})`;
     $("catName").textContent = h.cat.name;
     $("listSize").textContent = maxRank(h.cat);
     $("result").classList.add("hidden");
@@ -668,6 +675,9 @@
     updateRed();
   }));
   document.querySelectorAll('input[name="fam"], #yearFrom, #yearTo').forEach((el) => el.addEventListener("change", updateRed));
+  // Hard mode toggle: remembered between visits.
+  try { $("hardMode").checked = localStorage.getItem("nflgolf.hard") === "1"; } catch {}
+  $("hardMode").addEventListener("change", () => { try { localStorage.setItem("nflgolf.hard", $("hardMode").checked ? "1" : "0"); } catch {} });
   setChoices(true);
   renderDailyCard();
   }
