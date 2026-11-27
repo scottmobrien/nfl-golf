@@ -677,6 +677,10 @@
   document.querySelectorAll('input[name="fam"], #yearFrom, #yearTo').forEach((el) => el.addEventListener("change", updateRed));
   // Hard mode toggle: remembered between visits.
   try { $("hardMode").checked = localStorage.getItem("nflgolf.hard") === "1"; } catch {}
+  const tip = (open) => { $("hardTip").classList.toggle("hidden", !open); $("hardHelp").setAttribute("aria-expanded", open); };
+  $("hardHelp").addEventListener("click", (e) => { e.stopPropagation(); tip($("hardTip").classList.contains("hidden")); });
+  document.addEventListener("click", (e) => { if (!$("hardTip").contains(e.target)) tip(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") tip(false); });
   $("hardMode").addEventListener("change", () => { try { localStorage.setItem("nflgolf.hard", $("hardMode").checked ? "1" : "0"); } catch {} });
   setChoices(true);
   renderDailyCard();

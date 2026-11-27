@@ -5,14 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="claude:viewport-fit-sides" content="cover">
   <title>NFL Golf</title>
-  <link rel="stylesheet" href="styles.css?v=12" />
+  <link rel="stylesheet" href="styles.css?v=13" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="flag">⛳</span> NFL <em>Golf</em></div>
-    <label id="hardToggle" class="hard-toggle" title="Hard mode hides the pin player's stat">
-      <input type="checkbox" id="hardMode" /> <span class="switch" aria-hidden="true"></span> Hard mode
-    </label>
+    <div id="hardToggle" class="hard-wrap">
+      <label class="hard-toggle">
+        <input type="checkbox" id="hardMode" /> <span class="switch" aria-hidden="true"></span> Hard mode
+      </label>
+      <button id="hardHelp" class="help-btn" type="button" aria-label="What is Hard mode?" aria-expanded="false" aria-controls="hardTip">?</button>
+      <div id="hardTip" class="help-tip hidden" role="tooltip">For an additional challenge, hide the statistic for the pin player (i.e. you'll only see the ranking, not the underlying statistic).</div>
+    </div>
     <div id="totalBadge" class="total-badge hidden">Score <strong id="totalScore">0</strong></div>
   </header>
 
@@ -151,6 +155,6 @@
   </main>
 
   <script src="leaderboard-config.js?v=10"></script>
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=15"></script>
 </body>
 </html>
