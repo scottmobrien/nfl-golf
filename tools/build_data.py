@@ -135,8 +135,19 @@ boards.append({"id": "teams_beaten", "name": "Most Different Teams Beaten (QB)",
 # ---------- season-by-season stats (for Members Tees / Red Tees spans) ----------
 # data-src/pfr_seasons_*.json from tools/pfr-export-seasons.js: {year: {page: {cols, rows: [[id, name, ...cells]]}}}
 seasons_raw = {}
-for fn in sorted(glob.glob(os.path.join(SRC, "pfr_seasons_*.json"))):
+for fn in sorted(glob.glob(os.path.join(SRC, "pfr_seasons_[0-9]*-[0-9]*.json"))):  # NFL chunks, e.g. 2026-2017
     seasons_raw.update({int(y): v for y, v in json.load(open(fn)).items()})
+# AFL (1960-69) and AAFC (1946-49) seasons from tools/pfr-export-afl-aafc.js, keyed "1965_AFL": fold each
+# into its year so spans count every major-league season, as PFR's career totals do.
+other = os.path.join(SRC, "pfr_seasons_afl_aafc.json")
+if os.path.exists(other):
+    for key, pages in json.load(open(other)).items():
+        yr = int(key.split("_")[0])
+        for page, t in pages.items():
+            base = seasons_raw.setdefault(yr, {}).setdefault(page, {"cols": t["cols"], "rows": []})
+            at = {c: i for i, c in enumerate(t["cols"])}
+            # Re-order this league's cells into the NFL table's column order (blank where a stat is missing).
+            base["rows"] += [r[:2] + [r[2 + at[c]] if c in at else "" for c in base["cols"]] for r in t["rows"]]
 season_cols = collections.defaultdict(set)  # page -> data-stat names seen
 for yr in seasons_raw.values():
     for page, t in yr.items():
