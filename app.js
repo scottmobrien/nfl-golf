@@ -688,7 +688,8 @@
   // ---------- daily leaderboard (Supabase) ----------
   const LB = window.NFLGOLF_LEADERBOARD || {};
   const lbOn = !!(LB.url && LB.key);
-  const lbHeaders = { apikey: LB.key, Authorization: `Bearer ${LB.key}`, "Content-Type": "application/json" };
+  // New-style publishable keys (sb_publishable_…) go in the apikey header only; legacy anon JWTs also need Authorization.
+  const lbHeaders = { apikey: LB.key, "Content-Type": "application/json", ...(/^eyJ/.test(LB.key || "") ? { Authorization: `Bearer ${LB.key}` } : {}) };
   const deviceId = (() => {
     try {
       let id = localStorage.getItem("nflgolf.device");
@@ -697,26 +698,28 @@
     } catch { return crypto.randomUUID(); }
   })();
   async function lbFetch(date) {
-    const q = `day=eq.${date}&select=name,score,device&order=score.asc,created_at.asc&limit=5000`;
+    const q = `day=eq.${date}&select=name,score,hard,device&order=score.asc,created_at.asc&limit=5000`;
     const r = await fetch(`${LB.url}/rest/v1/daily_scores?${q}`, { headers: lbHeaders });
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
   }
-  async function lbPost(date, name, score) {
+  async function lbPost(date, name, score, hard) {
     const r = await fetch(`${LB.url}/rest/v1/daily_scores`, {
       method: "POST", headers: { ...lbHeaders, Prefer: "return=minimal" },
-      body: JSON.stringify({ day: date, name, score, device: deviceId }),
+      body: JSON.stringify({ day: date, name, score, hard: !!hard, device: deviceId }),
     });
     // 409 = this device already posted today; treat as posted.
     if (!r.ok && r.status !== 409) throw new Error("HTTP " + r.status);
   }
+
+  const savedName = () => { try { return localStorage.getItem("nflgolf.name") || ""; } catch { return ""; } };
 
   async function renderBoardPanel(msg) {
     const box = $("dailyBoard"), d = loadDaily() || {};
     if (!lbOn) { box.innerHTML = `<h3>The Daily 9 leaderboard</h3><p class="fine">The leaderboard opens soon. Come back tomorrow for a new course.</p>`; return; }
     const form = d.posted ? "" : `
       <form id="postForm" class="post-form">
-        <input id="postName" maxlength="20" placeholder="Your name for the leaderboard" value="${esc(d.name || "")}" aria-label="Your name" required />
+        <input id="postName" maxlength="20" placeholder="Your name for the leaderboard" value="${esc(d.name || savedName())}" aria-label="Your name" required />
         <button class="primary" type="submit">Post score</button>
       </form>`;
     box.innerHTML = `<h3>The Daily 9 #${dayNum(d.date || todayET())} leaderboard</h3>${form}<p class="fine" id="lbMsg">${esc(msg || "Loading…")}</p><ol class="lb-list" id="lbList"></ol>`;
@@ -724,12 +727,14 @@
       e.preventDefault();
       const name = $("postName").value.trim().slice(0, 20);
       if (!name) return;
-      e.submitter.disabled = true;
+      const btn = $("postForm").querySelector("button");
+      btn.disabled = true;
       try {
-        await lbPost(round.tee.daily, name, total());
+        await lbPost(round.tee.daily, name, total(), round.tee.hard);
+        try { localStorage.setItem("nflgolf.name", name); } catch {}
         saveDaily({ ...(loadDaily() || { date: round.tee.daily, picks: [] }), posted: true, name });
         renderBoardPanel();
-      } catch (err) { e.submitter.disabled = false; $("lbMsg").textContent = `Couldn't post (${err.message}). Try again.`; }
+      } catch (err) { btn.disabled = false; $("lbMsg").textContent = `Couldn't post (${err.message}). Try again.`; }
     });
     try {
       const rows = await lbFetch(d.date || todayET());
@@ -737,10 +742,11 @@
       const ranked = rows.map((r, i) => ({ ...r, rank: prev !== null && r.score === prev ? rank : (rank = i + 1, prev = r.score, rank) }));
       const mine = ranked.find((r) => r.device === deviceId);
       $("lbMsg").textContent = !rows.length ? "No scores yet. Be the first."
-        : mine ? `You're #${mine.rank} of ${rows.length} today.` : `${rows.length} golfer${rows.length === 1 ? "" : "s"} today.`;
+        : (mine ? `You're #${mine.rank} of ${rows.length} today.` : `${rows.length} golfer${rows.length === 1 ? "" : "s"} today.`)
+          + (rows.some((r) => r.hard) ? " 🔥 = Hard mode." : "");
       const top = ranked.slice(0, 25);
       if (mine && !top.includes(mine)) top.push(mine);
-      $("lbList").innerHTML = top.map((r) => `<li class="${r === mine ? "me" : ""}"><span class="rk">#${r.rank}</span><span>${esc(r.name)}</span><span class="val">${fmtPts(+r.score)}</span></li>`).join("");
+      $("lbList").innerHTML = top.map((r) => `<li class="${r === mine ? "me" : ""}"><span class="rk">#${r.rank}</span><span>${esc(r.name)}${r.hard ? ' <span class="hard-flag" title="Hard mode">🔥</span>' : ""}</span><span class="val">${fmtPts(+r.score)}</span></li>`).join("");
     } catch (err) { $("lbMsg").textContent = `Couldn't load the leaderboard (${err.message}).`; }
   }
 
