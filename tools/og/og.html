@@ -1,0 +1,59 @@
+<!doctype html>
+<!-- Link-preview card (Open Graph image). Re-render with: python3 tools/og/render.py -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+    color: #fff; position: relative;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 118px, rgba(255,255,255,.06) 118px 121px),
+      repeating-linear-gradient(0deg, #0f3d24 0 105px, #145230 105px 210px);
+  }
+  .wrap { position: absolute; inset: 0; padding: 64px 72px; display: flex; flex-direction: column; }
+  .flag { font-size: 78px; line-height: 1; }
+  h1 { margin-top: 18px; font-size: 92px; font-weight: 900; letter-spacing: -3px; line-height: .98; }
+  h1 span { display: block; color: #e0b13a; }
+  .tag { margin-top: 26px; font-size: 34px; font-weight: 600; color: rgba(255,255,255,.9); letter-spacing: -.3px; }
+  .bottom { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; }
+  .sports { display: flex; gap: 14px; }
+  .sport {
+    display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-radius: 14px;
+    background: #fbfaf5; color: #142019; font-size: 26px; font-weight: 900;
+  }
+  .sport i { font-style: normal; font-size: 30px; }
+  .sport.soon { background: rgba(251,250,245,.22); color: rgba(255,255,255,.75); }
+  .sport.soon i { filter: grayscale(1); opacity: .75; }
+  .card {
+    background: #fbfaf5; color: #142019; border-radius: 18px; padding: 18px 22px; width: 400px;
+    box-shadow: 0 16px 40px rgba(0,0,0,.35); border: 3px solid #e0b13a;
+  }
+  .card b { display: block; font-size: 21px; font-weight: 800; }
+  .card .grid { font-size: 30px; letter-spacing: 1px; white-space: nowrap; margin-top: 8px; }
+  .card .score { font-size: 19px; color: #5b6b61; margin-top: 6px; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flag">⛳</div>
+    <h1>Sports.......<span>But Make it Golf</span></h1>
+    <p class="tag">Sports trivia, scored like golf. Play the Daily 9.</p>
+    <div class="bottom">
+      <div class="sports">
+        <div class="sport"><i>🏈</i>NFL</div>
+        <div class="sport soon"><i>🏀</i>NBA</div>
+        <div class="sport soon"><i>⚾</i>MLB</div>
+        <div class="sport soon"><i>🏒</i>NHL</div>
+      </div>
+      <div class="card">
+        <b>⛳ Daily 9 — −2 (Scratch Golfer)</b>
+        <div class="grid">🟩⬜🟩⬜🟨⬜🟩⬜⬜</div>
+        <div class="score">sportsbutmakeitgolf.com</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -505,13 +505,10 @@
     const icon = (h) => { const p = toPar(h); return h.ob ? "🟥" : p === -3 ? "⛳" : p < 0 ? "🟩" : p === 0 ? "⬜" : p === 1 ? "🟨" : "🟧"; };
     const res = (h) => `${label(h)[0].replace("!", "")} (${fmtPar(toPar(h))})`;
     if (round.tee.daily) {
-      // No player names: friends may not have played today's course yet.
+      // Three lines, Wordle-style: fits in one glance in a group chat, and gives nothing away.
       return [
-        `NFL Golf ⛳ The Daily 9 #${round.tee.num} — ${fmtPar(totalPar())} (${$("finalRank").textContent})`,
+        `⛳ NFL Golf Daily 9 #${round.tee.num} — ${fmtPar(totalPar())} (${$("finalRank").textContent})${round.tee.hard ? " 🔥" : ""}`,
         round.holes.map(icon).join(""),
-        "",
-        ...round.holes.map((h, i) => `${i + 1}. ${h.cat.name} · pin #${h.par} — ${icon(h)} ${res(h)}`),
-        "",
         location.origin + location.pathname,
       ].join("\n");
     }
