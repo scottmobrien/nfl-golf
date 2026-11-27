@@ -812,6 +812,8 @@
   $("hardMode").addEventListener("change", () => { try { localStorage.setItem("nflgolf.hard", $("hardMode").checked ? "1" : "0"); } catch {} });
   setChoices(true);
   renderDailyCard();
+  // Members Tees (the default) needs season stats: fetch them in the background so the first round starts fast.
+  if (document.querySelector('input[name="tee"]:checked').value !== "tips") setTimeout(() => loadSeasons().catch(() => {}), 500);
   // Opened from a challenge link?
   try {
     const raw = new URLSearchParams(location.search).get("challenge");
