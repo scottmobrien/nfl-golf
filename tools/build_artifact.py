@@ -8,7 +8,8 @@ import os, re, shutil
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIST = os.path.join(ROOT, "dist")
-read = lambda name: open(os.path.join(ROOT, name), encoding="utf-8").read()
+GAME = os.path.join(ROOT, "nfl")  # the NFL game lives in nfl/
+read = lambda name: open(os.path.join(GAME, name), encoding="utf-8").read()
 
 html = read("index.html")
 title = re.search(r"<title>.*?</title>", html, re.S).group()
@@ -26,6 +27,6 @@ page = "\n".join([
 os.makedirs(DIST, exist_ok=True)
 open(os.path.join(DIST, "index.html"), "w", encoding="utf-8").write(page)
 for name in ("data.json", "seasons.json"):
-    if os.path.exists(os.path.join(ROOT, name)):
-        shutil.copy(os.path.join(ROOT, name), os.path.join(DIST, name))
+    if os.path.exists(os.path.join(GAME, name)):
+        shutil.copy(os.path.join(GAME, name), os.path.join(DIST, name))
 print("dist/index.html", len(page), "bytes; dist/data.json", os.path.getsize(os.path.join(DIST, "data.json")), "bytes")

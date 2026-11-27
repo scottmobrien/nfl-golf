@@ -4,8 +4,9 @@ Each hole is an NFL stat leaderboard with a random pin (rank). Name the player s
 closest to that rank. Your score on the hole is how far off you were as a percentage of the list
 (out of bounds = 100). Lowest total wins.
 
-Play: open `index.html` through any static web server (it fetches `data.json`, and `seasons.json`
-for the span modes).
+Live at https://sportsbutmakeitgolf.com. The root `index.html` is the "Sports.......But Make it Golf"
+landing page; the NFL game lives in `nfl/` (it fetches `nfl/data.json`, and `nfl/seasons.json` for the
+span modes). Serve the repo root with any static web server to play locally.
 
 ## Tees (game modes)
 
@@ -31,6 +32,6 @@ To refresh:
    `tools/pfr-export-all.js` (career boards), `tools/pfr-qbwins-export.js` (teams beaten),
    `tools/pfr-export-seasons.js` (every season's stat pages; about 50 minutes, saves a file per 10 seasons).
 2. Move the downloads into `data-src/`: `pfr_all_career_leaders.json`, `pfr_qb_teams_beaten.json`, `pfr_seasons_*.json`.
-3. `python3 tools/build_data.py` to regenerate `data.json` and `seasons.json`.
+3. `python3 tools/build_data.py` to regenerate `nfl/data.json` and `nfl/seasons.json`.
 
 `python3 tools/build_artifact.py` bundles a single-page version into `dist/` for publishing as a Claude artifact.

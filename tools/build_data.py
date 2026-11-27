@@ -312,7 +312,7 @@ for b in boards:
     cats.append({"id": b["id"], "name": b["name"], "f": family(b["id"]), "l": leaders})
 
 # data.json: {asOf, players: [names], categories: [{id, name, f: family, l: [[rank, player index, display value]]}]}
-with open(os.path.join(ROOT, "data.json"), "w") as f:
+with open(os.path.join(ROOT, "nfl", "data.json"), "w") as f:
     json.dump({"asOf": meta["retrieved"][:10], "firstSeason": FIRST_SEASON, "lastSeason": LAST_SEASON,
                "players": players, "categories": cats},
               f, ensure_ascii=False, separators=(",", ":"))
@@ -323,7 +323,7 @@ if seasons_raw:
     for yr, pages in season_rows.items():
         out[yr] = {pg: {"c": needed[pg], "r": [[index[names[pid]], *v] for pid, v in rows.items()]}
                    for pg, rows in pages.items() if pg in needed and rows}
-    with open(os.path.join(ROOT, "seasons.json"), "w") as f:
+    with open(os.path.join(ROOT, "nfl", "seasons.json"), "w") as f:
         json.dump({"years": [FIRST_SEASON, LAST_SEASON], "extraPlayers": extra, "boards": specs, "seasons": out},
                   f, ensure_ascii=False, separators=(",", ":"))
     print(f"seasons.json: {len(out)} seasons, {len(specs)} span boards, {len(extra)} season-only players")
