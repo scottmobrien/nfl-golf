@@ -147,10 +147,10 @@
     s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
       .replace(/[^a-z0-9 ]/g, " ")
       .replace(/\s+/g, " ").trim();
-  const shuffle = (a) => {
+  const shuffle = (a, rnd = Math.random) => {
     a = a.slice();
     for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(rnd() * (i + 1));
       [a[i], a[j]] = [a[j], a[i]];
     }
     return a;
@@ -163,10 +163,10 @@
   // ---------- state ----------
   let round = null; // { holes: [{cat, par, guess, strokes, ob}], idx }
 
-  function buildRound(n, cats) {
+  function buildRound(n, cats, rnd = Math.random) {
     let order = [];
     while (order.length < n) {
-      let next = shuffle(cats);
+      let next = shuffle(cats, rnd);
       // avoid the same category on back-to-back holes when the deck wraps
       if (order.length && next[0].id === order[order.length - 1].id) next.push(next.shift());
       order = order.concat(next);
@@ -175,7 +175,7 @@
       idx: 0,
       tee: currentTee,
       holes: order.slice(0, n).map((cat) => {
-        const pinEntry = cat.leaders[Math.floor(Math.random() * cat.leaders.length)];
+        const pinEntry = cat.leaders[Math.floor(rnd() * cat.leaders.length)];
         return { cat, par: pinEntry.rank, guess: null, strokes: null, ob: false };
       }),
     };
@@ -205,7 +205,54 @@
     return { id, label: t.label, fams: t.fams, from: t.from, to: t.from ? last : undefined, present: !!t.from };
   }
   const spanText = (t) => (t.from ? `${t.from}–${t.present ? "present" : t.to}` : "All time");
-  const teeText = (t) => `${t.label} · ${spanText(t)}`;
+  const teeText = (t) => (t.daily ? `Daily Course #${t.num} · Members Tees` : `${t.label} · ${spanText(t)}`);
+
+  // ---------- daily course ----------
+  // Everyone gets the same 9 Members Tees holes each day (US Eastern date), seeded from the date.
+  const DAILY_EPOCH = "2026-11-27"; // Daily Course #1
+  const todayET = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  const dayNum = (d) => Math.round((Date.parse(d) - Date.parse(DAILY_EPOCH)) / 864e5) + 1;
+  function seeded(str) {
+    let h = 2166136261;
+    for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+    return () => { // mulberry32
+      h = (h + 0x6d2b79f5) | 0;
+      let t = Math.imul(h ^ (h >>> 15), 1 | h);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const dailyTee = (date) => ({
+    id: "daily", daily: date, num: dayNum(date), label: "Daily Course",
+    fams: TEES.members.fams, from: TEES.members.from, to: SEASONS.years[1], present: true,
+  });
+  // Saved progress: {date, picks: [{name, key}], posted, name}
+  const DAILY_KEY = "nflgolf.daily";
+  const loadDaily = () => { try { const d = JSON.parse(localStorage.getItem(DAILY_KEY)); return d && d.date === todayET() ? d : null; } catch { return null; } };
+  const saveDaily = (d) => { try { localStorage.setItem(DAILY_KEY, JSON.stringify(d)); } catch {} };
+
+  async function startDaily() {
+    const date = todayET();
+    if (!SEASONS) {
+      $("dailyBtn").disabled = true;
+      $("dailyBtn").textContent = "Loading…";
+      try { await loadSeasons(); } catch (e) { $("dailyBtn").disabled = false; renderDailyCard(`Couldn't load season stats (${e.message}). Try again.`); return; }
+      $("dailyBtn").disabled = false;
+    }
+    const t = dailyTee(date);
+    currentTee = t;
+    POOL = POOL_ALL;
+    round = buildRound(9, boardsFor(t), seeded("nfl-golf-daily:" + date));
+    $("holeTee").textContent = teeText(t);
+    $("holeCount").textContent = 9;
+    // Replay saved swings so a refresh can't re-roll a hole.
+    const saved = loadDaily() || { date, picks: [] };
+    saved.picks.forEach((r, i) => { round.idx = i; scoreGuess(round.holes[i], r); });
+    round.idx = Math.min(saved.picks.length, 8);
+    if (saved.picks.length >= 9) { finish(); return; }
+    renderHole();
+    show("hole");
+  }
 
   async function startRound(n) {
     const t = chosenTee();
@@ -262,6 +309,17 @@
     const r = resolveGuess(text);
     if (r.error) { flashInput(r.error); return; }
     const h = round.holes[round.idx];
+    if (h.strokes != null) return;
+    scoreGuess(h, r);
+    if (round.tee.daily) {
+      const d = loadDaily() || { date: round.tee.daily, picks: [] };
+      d.picks[round.idx] = { name: r.name, key: r.key };
+      saveDaily(d);
+    }
+    renderResult(h);
+  }
+
+  function scoreGuess(h, r) {
     const hit = h.cat.leaders.find((p) => norm(p.name) === r.key);
     h.guess = r.name;
     if (hit) {
@@ -274,7 +332,10 @@
       h.strokes = OB_POINTS;
       h.ob = true;
     }
-    renderResult(h);
+    // Pin names, for the scorecard and shared card.
+    const pinNames = h.cat.leaders.filter((p) => p.rank === h.par).map((p) => p.name);
+    h.pinNames = pinNames;
+    h.pinName = pinNames.length === 1 ? pinNames[0] : `${pinNames[0]} +${pinNames.length - 1} tied`;
   }
 
   function label(h) {
@@ -300,12 +361,10 @@
     $("resultLabel").className = "result-label " + cls;
     $("resultStrokes").textContent = fmtPts(h.strokes);
 
-    const pinNames = h.cat.leaders.filter((p) => p.rank === h.par).map((p) => p.name);
+    const pinNames = h.pinNames;
     const atPin = pinNames.length <= 3
       ? pinNames.join(" / ")
       : `${pinNames.slice(0, 2).join(" / ")} and ${pinNames.length - 2} others tied`;
-    // Short form for the scorecard and shared card.
-    h.pinName = pinNames.length === 1 ? pinNames[0] : `${pinNames[0]} +${pinNames.length - 1} tied`;
     $("resultDetail").innerHTML = h.ob
       ? `<b>${esc(h.guess)}</b> isn't in the top ${maxRank(h.cat)}. The pin (#${h.par}) was ${esc(atPin)}.`
       : `<b>${esc(h.guess)}</b> is #${h.guessRank}, ${h.miss} spot${h.miss === 1 ? "" : "s"} off on a ${h.cat.leaders.length}-player list. The pin (#${h.par}) was ${esc(atPin)}.`;
@@ -374,11 +433,25 @@
     $("finalVerdict").textContent = verdict;
     renderScorecard($("finalCard"), false);
     $("totalScore").textContent = fmtPts(t);
+    $("shareText").hidden = true;
+    $("dailyBoard").classList.toggle("hidden", !round.tee.daily);
+    if (round.tee.daily) renderBoardPanel();
     show("final");
   }
 
   function shareText() {
     const icon = (h) => h.ob ? "🟥" : h.strokes === 0 ? "⛳" : h.strokes <= 3 ? "🟩" : h.strokes <= 15 ? "🟨" : "🟧";
+    if (round.tee.daily) {
+      // No player names: friends may not have played today's course yet.
+      return [
+        `NFL Golf ⛳ Daily Course #${round.tee.num} — ${fmtPts(total())} points (${$("finalRank").textContent})`,
+        round.holes.map(icon).join(""),
+        "",
+        ...round.holes.map((h, i) => `${i + 1}. ${h.cat.name} · pin #${h.par} — ${icon(h)} ${fmtPts(h.strokes)}`),
+        "",
+        location.origin + location.pathname,
+      ].join("\n");
+    }
     const holes = round.holes.map((h, i) => [
       `${i + 1}. ${h.cat.name.replace(/^Career /, "")} — ${icon(h)} ${fmtPts(h.strokes)} pts`,
       `   Pin: #${h.par} ${h.pinName}`,
@@ -457,7 +530,8 @@
   });
   $("guessForm").addEventListener("submit", (e) => { e.preventDefault(); submitGuess($("guessInput").value); });
   $("nextBtn").addEventListener("click", next);
-  $("againBtn").addEventListener("click", () => show("setup"));
+  $("againBtn").addEventListener("click", () => { renderDailyCard(); show("setup"); });
+  $("dailyBtn").addEventListener("click", startDaily);
   $("shareBtn").addEventListener("click", () => {
     const box = $("shareText");
     box.value = shareText();
@@ -466,6 +540,81 @@
       .catch(() => { box.hidden = false; box.focus(); box.select(); $("shareBtn").textContent = "Select and copy below"; });
     setTimeout(() => ($("shareBtn").textContent = "Share your card"), 2000);
   });
+  // ---------- daily leaderboard (Supabase) ----------
+  const LB = window.NFLGOLF_LEADERBOARD || {};
+  const lbOn = !!(LB.url && LB.key);
+  const lbHeaders = { apikey: LB.key, Authorization: `Bearer ${LB.key}`, "Content-Type": "application/json" };
+  const deviceId = (() => {
+    try {
+      let id = localStorage.getItem("nflgolf.device");
+      if (!id) localStorage.setItem("nflgolf.device", (id = crypto.randomUUID()));
+      return id;
+    } catch { return crypto.randomUUID(); }
+  })();
+  async function lbFetch(date) {
+    const q = `day=eq.${date}&select=name,score,device&order=score.asc,created_at.asc&limit=5000`;
+    const r = await fetch(`${LB.url}/rest/v1/daily_scores?${q}`, { headers: lbHeaders });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }
+  async function lbPost(date, name, score) {
+    const r = await fetch(`${LB.url}/rest/v1/daily_scores`, {
+      method: "POST", headers: { ...lbHeaders, Prefer: "return=minimal" },
+      body: JSON.stringify({ day: date, name, score, device: deviceId }),
+    });
+    // 409 = this device already posted today; treat as posted.
+    if (!r.ok && r.status !== 409) throw new Error("HTTP " + r.status);
+  }
+
+  async function renderBoardPanel(msg) {
+    const box = $("dailyBoard"), d = loadDaily() || {};
+    if (!lbOn) { box.innerHTML = `<h3>Daily leaderboard</h3><p class="fine">The leaderboard opens soon. Come back tomorrow for a new course.</p>`; return; }
+    const form = d.posted ? "" : `
+      <form id="postForm" class="post-form">
+        <input id="postName" maxlength="20" placeholder="Your name for the leaderboard" value="${esc(d.name || "")}" aria-label="Your name" required />
+        <button class="primary" type="submit">Post score</button>
+      </form>`;
+    box.innerHTML = `<h3>Daily Course #${dayNum(d.date || todayET())} leaderboard</h3>${form}<p class="fine" id="lbMsg">${esc(msg || "Loading…")}</p><ol class="lb-list" id="lbList"></ol>`;
+    $("postForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = $("postName").value.trim().slice(0, 20);
+      if (!name) return;
+      e.submitter.disabled = true;
+      try {
+        await lbPost(round.tee.daily, name, total());
+        saveDaily({ ...(loadDaily() || { date: round.tee.daily, picks: [] }), posted: true, name });
+        renderBoardPanel();
+      } catch (err) { e.submitter.disabled = false; $("lbMsg").textContent = `Couldn't post (${err.message}). Try again.`; }
+    });
+    try {
+      const rows = await lbFetch(d.date || todayET());
+      let rank = 0, prev = null;
+      const ranked = rows.map((r, i) => ({ ...r, rank: prev !== null && r.score === prev ? rank : (rank = i + 1, prev = r.score, rank) }));
+      const mine = ranked.find((r) => r.device === deviceId);
+      $("lbMsg").textContent = !rows.length ? "No scores yet. Be the first."
+        : mine ? `You're #${mine.rank} of ${rows.length} today.` : `${rows.length} golfer${rows.length === 1 ? "" : "s"} today.`;
+      const top = ranked.slice(0, 25);
+      if (mine && !top.includes(mine)) top.push(mine);
+      $("lbList").innerHTML = top.map((r) => `<li class="${r === mine ? "me" : ""}"><span class="rk">#${r.rank}</span><span>${esc(r.name)}</span><span class="val">${fmtPts(+r.score)}</span></li>`).join("");
+    } catch (err) { $("lbMsg").textContent = `Couldn't load the leaderboard (${err.message}).`; }
+  }
+
+  // The daily card at the top of the setup screen.
+  function renderDailyCard(note) {
+    const d = loadDaily(), date = todayET(), n = dayNum(date);
+    const left = (() => { // time until midnight Eastern
+      const now = new Date(), et = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const mins = 24 * 60 - (et.getHours() * 60 + et.getMinutes());
+      return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+    })();
+    const done = d && d.picks.filter(Boolean).length >= 9;
+    const started = d && d.picks.length && !done;
+    $("dailyNum").textContent = n;
+    $("dailyDate").textContent = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+    $("dailyBtn").textContent = done ? "See your card & leaderboard" : started ? `Resume (hole ${d.picks.length + 1} of 9)` : "Play today's course";
+    $("dailyNote").textContent = note || (done ? `You've played today's course. New course in ${left}.` : "Same 9 holes and pins for everyone · Members Tees (2000–present) · One round per day.");
+  }
+
   // ---------- setup screen ----------
   const baseNote = `${DATA.categories.length} all-time stat categories · Regular-season stats from Pro Football Reference, as of ${DATA.asOf}.`;
   function setChoices(on, note) {
@@ -504,5 +653,6 @@
   }));
   document.querySelectorAll('input[name="fam"], #yearFrom, #yearTo').forEach((el) => el.addEventListener("change", updateRed));
   setChoices(true);
+  renderDailyCard();
   }
 })();

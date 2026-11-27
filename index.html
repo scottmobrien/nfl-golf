@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="claude:viewport-fit-sides" content="cover">
   <title>NFL Golf</title>
-  <link rel="stylesheet" href="styles.css?v=9" />
+  <link rel="stylesheet" href="styles.css?v=10" />
 </head>
 <body>
   <header class="topbar">
@@ -16,6 +16,16 @@
   <main>
     <!-- Setup -->
     <section id="setup" class="screen">
+      <div class="card daily-card">
+        <div class="daily-head">
+          <div>
+            <div class="daily-kicker">⛳ Daily Course #<span id="dailyNum">1</span></div>
+            <div class="daily-date" id="dailyDate"></div>
+          </div>
+          <button id="dailyBtn" class="primary">Play today's course</button>
+        </div>
+        <p class="fine daily-note" id="dailyNote"></p>
+      </div>
       <div class="card hero">
         <h1>Tee it up.</h1>
         <p class="lede">Each hole is an NFL stat leaderboard. The <strong>pin</strong> is a random rank on that list.
@@ -123,6 +133,7 @@
         <p id="finalVerdict" class="lede final-verdict"></p>
         <div class="scorecard-scroll"><table id="finalCard" class="scorecard"></table></div>
         <textarea id="shareText" class="share-text" rows="12" readonly hidden aria-label="Your scorecard"></textarea>
+        <div id="dailyBoard" class="daily-board hidden"></div>
         <div class="final-actions">
           <button id="shareBtn" class="ghost">Share your card</button>
           <button id="againBtn" class="primary">Play again</button>
@@ -131,6 +142,7 @@
     </section>
   </main>
 
-  <script src="app.js?v=9"></script>
+  <script src="leaderboard-config.js?v=10"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

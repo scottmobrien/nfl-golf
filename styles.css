@@ -105,6 +105,25 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
 .hole-tee { margin-top: 14px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 .hole-tee + .cat-name { margin-top: 2px; }
 
+.daily-card { background: linear-gradient(135deg, #fffaf0, var(--card)); border: 2px solid var(--gold); }
+.daily-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.daily-kicker { font-weight: 900; font-size: 22px; color: var(--turf); }
+.daily-date { color: var(--muted); font-size: 14px; margin-top: 2px; }
+.daily-note { margin-top: 10px; }
+.daily-board { margin-top: 20px; border-top: 1px solid var(--line); padding-top: 16px; }
+.post-form { display: flex; gap: 10px; }
+.post-form input {
+  flex: 1; font: inherit; font-size: 16px; padding: 10px 12px; border: 2px solid var(--line); border-radius: 10px;
+  background: #fff; color: var(--ink); -webkit-text-fill-color: var(--ink); outline: none;
+}
+.post-form input:focus { border-color: var(--fairway); }
+.lb-list { list-style: none; margin: 8px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.lb-list:empty { display: none; }
+.lb-list li { display: grid; grid-template-columns: 56px 1fr auto; gap: 8px; padding: 7px 12px; border-bottom: 1px solid #f0efe8; font-size: 15px; }
+.lb-list li:last-child { border-bottom: 0; }
+.lb-list .rk, .lb-list .val { color: var(--muted); font-variant-numeric: tabular-nums; }
+.lb-list li.me { background: #e4f3e9; font-weight: 700; }
+
 .hole-head { display: flex; justify-content: space-between; align-items: center; }
 .hole-num { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 .hole-num span:first-child { color: var(--ink); font-size: 22px; }
@@ -183,6 +202,8 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
   h1 { font-size: 32px; }
   .hole-choices { grid-template-columns: repeat(2, 1fr); }
   .tees { grid-template-columns: 1fr; }
+  .daily-head { flex-direction: column; align-items: stretch; }
+  .post-form { flex-direction: column; }
   #guessForm { flex-direction: column; }
   .cat-name { font-size: 23px; }
 }
