@@ -205,11 +205,11 @@
     return { id, label: t.label, fams: t.fams, from: t.from, to: t.from ? last : undefined, present: !!t.from };
   }
   const spanText = (t) => (t.from ? `${t.from}–${t.present ? "present" : t.to}` : "All time");
-  const teeText = (t) => (t.daily ? `Daily Course #${t.num} · Members Tees` : `${t.label} · ${spanText(t)}`);
+  const teeText = (t) => (t.daily ? `The Daily 9 #${t.num} · Members Tees` : `${t.label} · ${spanText(t)}`);
 
   // ---------- daily course ----------
   // Everyone gets the same 9 Members Tees holes each day (US Eastern date), seeded from the date.
-  const DAILY_EPOCH = "2026-11-27"; // Daily Course #1
+  const DAILY_EPOCH = "2026-11-27"; // The Daily 9 #1
   const todayET = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
   const dayNum = (d) => Math.round((Date.parse(d) - Date.parse(DAILY_EPOCH)) / 864e5) + 1;
   function seeded(str) {
@@ -223,7 +223,7 @@
     };
   }
   const dailyTee = (date) => ({
-    id: "daily", daily: date, num: dayNum(date), label: "Daily Course",
+    id: "daily", daily: date, num: dayNum(date), label: "The Daily 9",
     fams: TEES.members.fams, from: TEES.members.from, to: SEASONS.years[1], present: true,
   });
   // Saved progress: {date, picks: [{name, key}], posted, name}
@@ -444,7 +444,7 @@
     if (round.tee.daily) {
       // No player names: friends may not have played today's course yet.
       return [
-        `NFL Golf ⛳ Daily Course #${round.tee.num} — ${fmtPts(total())} points (${$("finalRank").textContent})`,
+        `NFL Golf ⛳ The Daily 9 #${round.tee.num} — ${fmtPts(total())} points (${$("finalRank").textContent})`,
         round.holes.map(icon).join(""),
         "",
         ...round.holes.map((h, i) => `${i + 1}. ${h.cat.name} · pin #${h.par} — ${icon(h)} ${fmtPts(h.strokes)}`),
@@ -568,13 +568,13 @@
 
   async function renderBoardPanel(msg) {
     const box = $("dailyBoard"), d = loadDaily() || {};
-    if (!lbOn) { box.innerHTML = `<h3>Daily leaderboard</h3><p class="fine">The leaderboard opens soon. Come back tomorrow for a new course.</p>`; return; }
+    if (!lbOn) { box.innerHTML = `<h3>The Daily 9 leaderboard</h3><p class="fine">The leaderboard opens soon. Come back tomorrow for a new course.</p>`; return; }
     const form = d.posted ? "" : `
       <form id="postForm" class="post-form">
         <input id="postName" maxlength="20" placeholder="Your name for the leaderboard" value="${esc(d.name || "")}" aria-label="Your name" required />
         <button class="primary" type="submit">Post score</button>
       </form>`;
-    box.innerHTML = `<h3>Daily Course #${dayNum(d.date || todayET())} leaderboard</h3>${form}<p class="fine" id="lbMsg">${esc(msg || "Loading…")}</p><ol class="lb-list" id="lbList"></ol>`;
+    box.innerHTML = `<h3>The Daily 9 #${dayNum(d.date || todayET())} leaderboard</h3>${form}<p class="fine" id="lbMsg">${esc(msg || "Loading…")}</p><ol class="lb-list" id="lbList"></ol>`;
     $("postForm")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const name = $("postName").value.trim().slice(0, 20);
@@ -611,8 +611,8 @@
     const started = d && d.picks.length && !done;
     $("dailyNum").textContent = n;
     $("dailyDate").textContent = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-    $("dailyBtn").textContent = done ? "See your card & leaderboard" : started ? `Resume (hole ${d.picks.length + 1} of 9)` : "Play today's course";
-    $("dailyNote").textContent = note || (done ? `You've played today's course. New course in ${left}.` : "Same 9 holes and pins for everyone · Members Tees (2000–present) · One round per day.");
+    $("dailyBtn").textContent = done ? "See your card & leaderboard" : started ? `Resume (hole ${d.picks.length + 1} of 9)` : "Play today's Daily 9";
+    $("dailyNote").textContent = note || (done ? `You've played today's Daily 9. A new one tees off in ${left}.` : "Same 9 holes and pins for everyone · Members Tees (2000–present) · One round per day.");
   }
 
   // ---------- setup screen ----------
