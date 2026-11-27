@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="claude:viewport-fit-sides" content="cover">
+  <title>MLB Golf</title>
+  <meta name="description" content="Name the player closest to a random spot on an all-time MLB leaderboard. Scored like golf, with a Daily 9 for everyone." />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Sports.......But Make it Golf" />
+  <meta property="og:title" content="MLB Golf — Sports.......But Make it Golf" />
+  <meta property="og:description" content="Name the player closest to a random spot on an all-time MLB leaderboard. Scored like golf, with a Daily 9 for everyone." />
+  <meta property="og:url" content="https://sportsbutmakeitgolf.com/mlb/" />
+  <meta property="og:image" content="https://sportsbutmakeitgolf.com/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Sports.......But Make it Golf: sports trivia, scored like golf" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="MLB Golf — Sports.......But Make it Golf" />
+  <meta name="twitter:description" content="Name the player closest to a random spot on an all-time MLB leaderboard. Scored like golf, with a Daily 9 for everyone." />
+  <meta name="twitter:image" content="https://sportsbutmakeitgolf.com/og.png" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9B%B3%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="../shared/game.css?v=20" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" id="brandLink" href="./" aria-label="MLB Golf home"><span class="flag">⛳</span> MLB <em>Golf</em></a>
+    <div id="hardToggle" class="hard-wrap">
+      <label class="hard-toggle">
+        <input type="checkbox" id="hardMode" /> <span class="switch" aria-hidden="true"></span> Hard mode
+      </label>
+      <button id="hardHelp" class="help-btn" type="button" aria-label="What is Hard mode?" aria-expanded="false" aria-controls="hardTip">?</button>
+      <div id="hardTip" class="help-tip hidden" role="tooltip">For an additional challenge, hide the statistic for the pin player (i.e. you'll only see the ranking, not the underlying statistic).</div>
+    </div>
+    <div id="totalBadge" class="total-badge hidden">Score <strong id="totalScore">0</strong></div>
+  </header>
+
+  <main>
+    <!-- Setup -->
+    <section id="setup" class="screen">
+      <div id="challengeCard" class="card challenge-card hidden">
+        <div class="daily-head">
+          <div>
+            <div class="daily-kicker">🏌️ You've been challenged!</div>
+            <div class="daily-date" id="challengeWhat"></div>
+          </div>
+          <button id="challengeBtn" class="primary">Accept challenge</button>
+        </div>
+        <p class="fine daily-note" id="challengeNote"></p>
+      </div>
+      <div class="card daily-card">
+        <div class="daily-head">
+          <div>
+            <div class="daily-kicker">⛳ The Daily 9 #<span id="dailyNum">1</span></div>
+            <div class="daily-date" id="dailyDate"></div>
+          </div>
+          <button id="dailyBtn" class="primary">Play today's Daily 9</button>
+        </div>
+        <p class="fine daily-note" id="dailyNote"></p>
+      </div>
+      <div class="card hero">
+        <h1>Welcome to MLB Golf - Let’s Tee it Up!</h1>
+        <h2 class="howto">How to play:</h2>
+        <ul class="rules">
+          <li>Select a game mode and the number of holes you’d like to play, or take a shot at the daily 9</li>
+          <li>Each “hole” is an MLB statistical category (e.g. career home runs), and the “pin” is a random spot on that list (e.g. #75 out of 250)</li>
+          <li>Guess a player who you think is as close as possible to that spot on the list
+            <ul>
+              <li>If you guess the exact player (or one of the players tied for that ranking), that’s a hole in one!</li>
+              <li>The closer your chosen player is to that ranking, the better your score on that hole - and remember that your score is a function of the size of the list. On a list of 250 players, the “green” will be larger and you can make par by being further away from the target number than you could on a list that only has 50 players.</li>
+            </ul>
+          </li>
+          <li>Share your results with friends and play the daily 9 for a spot on the leaderboard. Enjoy!</li>
+        </ul>
+
+        <h2>Pick your tees</h2>
+        <div class="tees" role="radiogroup" aria-label="Game mode">
+          <label class="tee tee-tips"><input type="radio" name="tee" value="tips" />
+            <span class="tee-name"><i class="tee-dot"></i>The Tips <small>(Sicko Mode)</small></span>
+            <span class="tee-copy">All statistical categories (including odds and ends like sacrifice flies and wild pitches), all time, Negro Leagues included. A challenging round for true MLB sickos.</span>
+          </label>
+          <label class="tee tee-champ"><input type="radio" name="tee" value="champ" />
+            <span class="tee-name"><i class="tee-dot"></i>Championship</span>
+            <span class="tee-copy">All time periods, hitting, baserunning and pitching (no odds and ends). Still very tough, good luck.</span>
+          </label>
+          <label class="tee tee-members"><input type="radio" name="tee" value="members" checked />
+            <span class="tee-name"><i class="tee-dot"></i>Members Tees</span>
+            <span class="tee-copy">Hitting, baserunning and pitching, but only since 2000.</span>
+          </label>
+          <label class="tee tee-red"><input type="radio" name="tee" value="red" />
+            <span class="tee-name"><i class="tee-dot"></i>Red Tees</span>
+            <span class="tee-copy">Choose your own category options and time periods. Just delete a few beers and have fun out on the course, you're not maintaining a handicap anyway.</span>
+          </label>
+        </div>
+
+        <fieldset id="redOptions" class="red-options hidden">
+          <legend>Categories</legend>
+          <div class="fams">
+            <label><input type="checkbox" name="fam" value="bat" checked /> Hitting</label>
+            <label><input type="checkbox" name="fam" value="run" checked /> Baserunning</label>
+            <label><input type="checkbox" name="fam" value="pitch" checked /> Pitching</label>
+            <label><input type="checkbox" name="fam" value="misc" /> Odds &amp; Ends</label>
+          </div>
+          <div class="years">
+            <label>From <select id="yearFrom"></select></label>
+            <label>To <select id="yearTo"></select></label>
+          </div>
+          <p id="redNote" class="fine red-note"></p>
+        </fieldset>
+
+        <h2>How many holes?</h2>
+        <div class="hole-choices">
+          <button class="choice" data-holes="3">3<span>Quick</span></button>
+          <button class="choice" data-holes="6">6<span>Short</span></button>
+          <button class="choice" data-holes="9">9<span>Front nine</span></button>
+          <button class="choice" data-holes="18">18<span>Full round</span></button>
+        </div>
+        <p class="fine" id="dataNote"></p>
+      </div>
+    </section>
+
+    <!-- Hole -->
+    <section id="hole" class="screen hidden">
+      <div class="round-bar">
+        <button id="homeBtn" class="bar-btn" type="button">← Home</button>
+        <button id="reteeBtn" class="bar-btn" type="button" title="Start over from hole 1 with a fresh course, same settings">↺ Re-Tee</button>
+      </div>
+      <div class="card">
+        <div class="hole-head">
+          <div class="hole-num">Hole <span id="holeNum">1</span><small> / <span id="holeCount">9</span></small></div>
+          <div class="pin">
+            <div class="pin-label">Pin</div>
+            <div class="pin-rank">#<span id="parRank">1</span></div>
+          </div>
+        </div>
+        <div id="holeTee" class="hole-tee"></div>
+        <h2 id="catName" class="cat-name">Category</h2>
+        <p id="catNote" class="cat-note hidden"></p>
+        <p class="cat-sub">Ranked list goes to <b>#<span id="listSize">50</span></b>. Find the player ranked <b>#<span id="parRank2">1</span></b><span id="pinStat"></span> — or as close as you can.</p>
+
+        <div id="caddyBox" class="caddy-box hidden" aria-live="polite"></div>
+        <form id="guessForm" autocomplete="off">
+          <div class="ac-wrap">
+            <input id="guessInput" type="text" placeholder="Type a player's name…" aria-label="Player name" aria-autocomplete="list" aria-controls="acList" />
+            <ul id="acList" class="ac-list hidden" role="listbox"></ul>
+          </div>
+          <button id="guessBtn" type="submit" class="primary">Swing</button>
+        </form>
+        <button id="caddyBtn" type="button" class="caddy-btn">🏌️ Ask the Caddy <span>+1</span></button>
+
+        <div id="result" class="result hidden">
+          <div class="result-top">
+            <div>
+              <div id="resultLabel" class="result-label">Birdie</div>
+              <div id="resultDetail" class="result-detail"></div>
+            </div>
+            <div class="strokes"><span id="resultStrokes">0</span><small>to par</small></div>
+          </div>
+          <ol id="board" class="board"></ol>
+          <button id="nextBtn" class="primary wide">Next hole →</button>
+        </div>
+      </div>
+
+      <div class="card scorecard-card">
+        <h3>Scorecard</h3>
+        <div class="scorecard-scroll"><table id="scorecard" class="scorecard"></table></div>
+      </div>
+    </section>
+
+    <!-- Final -->
+    <section id="final" class="screen hidden">
+      <div class="card hero">
+        <div class="final-label">Round complete · <span id="finalTee"></span></div>
+        <div class="final-score"><span id="finalScore">0</span><small id="finalSub"></small></div>
+        <div id="finalRank" class="final-rank"></div>
+        <p id="finalVerdict" class="lede final-verdict"></p>
+        <div class="scorecard-scroll"><table id="finalCard" class="scorecard"></table></div>
+        <textarea id="shareText" class="share-text" rows="12" readonly hidden aria-label="Your scorecard"></textarea>
+        <div id="challengeResult" class="challenge-result hidden"></div>
+        <div id="dailyBoard" class="daily-board hidden"></div>
+        <div class="final-actions">
+          <button id="shareBtn" class="ghost">Share your card</button>
+          <button id="challengeSendBtn" class="ghost" title="Send a friend a link to this exact course">⚔️ Challenge</button>
+          <button id="reteeFinalBtn" class="ghost" title="Play a fresh course with the same settings">↺ Re-Tee</button>
+          <button id="againBtn" class="primary">Play again</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="caddyDialog" class="caddy-dialog" aria-labelledby="caddyTitle">
+    <form method="dialog">
+      <h3 id="caddyTitle">🏌️ Ask the Caddy?</h3>
+      <p>Add +1 to your score, but reveal the player(s) who are 30% away from the pin in either direction</p>
+      <div class="caddy-actions">
+        <button value="no" class="ghost">Never mind</button>
+        <button value="yes" class="primary" autofocus>Ask the Caddy (+1)</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>window.GOLF = {"name": "MLB Golf", "key": "mlbgolf", "dailySeed": "mlb-golf-daily:", "dailyEpoch": "2026-11-27", "uniformFirstDaily": false, "source": "the Lahman Baseball Database", "leaderboard": false, "allFams": ["bat", "run", "pitch", "misc"], "tees": {"champ": ["bat", "run", "pitch"], "members": ["bat", "run", "pitch"]}, "membersFrom": 2000};</script>
+  <script src="../shared/leaderboard-config.js?v=12"></script>
+  <script src="../shared/game.js?v=26"></script>
+  <!-- Cloudflare Web Analytics: cookieless page-view counts (see docs/traffic-analytics.md) -->
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "491b1652aaf04bb68538096815c8875a"}'></script>
+</body>
+</html>

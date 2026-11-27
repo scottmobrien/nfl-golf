@@ -3,3 +3,6 @@ dist/
 .DS_Store
 __pycache__/
 docs/
+data-src/nba/
+data-src/nhl/
+data-src/mlb/

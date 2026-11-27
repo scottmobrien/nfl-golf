@@ -1,6 +1,24 @@
 (() => {
   "use strict";
 
+  // Sport settings come from the page (window.GOLF); defaults are NFL Golf's.
+  const SPORT = Object.assign({
+    name: "NFL Golf",
+    key: "nflgolf",                 // localStorage prefix
+    dailySeed: "nfl-golf-daily:",   // Daily 9 course seed (date appended)
+    dailyEpoch: "2026-11-27",       // The Daily 9 #1
+    uniformFirstDaily: true,        // NFL's #1 launched before pins were weighted
+    source: "Pro Football Reference",
+    leaderboard: true,
+    lbSport: null,                  // set once daily_scores has a sport column; scores are then kept per sport
+    allFams: ["off", "def", "kick", "punt", "ret", "gen"],
+    tees: {
+      champ: ["off", "def", "gen"],
+      members: ["off", "def", "kick", "ret", "gen"],
+    },
+    membersFrom: 2000,
+  }, window.GOLF || {});
+
   // Leaderboards live in data.json (built by tools/build_data.py) next to the page.
   const choices = document.querySelectorAll(".choice");
   choices.forEach((b) => (b.disabled = true));
@@ -21,11 +39,11 @@
   // ---------- tees (game modes) ----------
   // Families: off, def, kick (placekicking + points), punt, ret (returns), gen (games, starts, AV, awards).
   // Modes with a span rebuild every board from season-by-season stats (seasons.json) for those years.
-  const ALL_FAMS = ["off", "def", "kick", "punt", "ret", "gen"];
+  const ALL_FAMS = SPORT.allFams;
   const TEES = {
     tips: { label: "The Tips", fams: ALL_FAMS },
-    champ: { label: "Championship", fams: ["off", "def", "gen"] },
-    members: { label: "Members Tees", fams: ["off", "def", "kick", "ret", "gen"], from: 2000 },
+    champ: { label: "Championship", fams: SPORT.tees.champ },
+    members: { label: "Members Tees", fams: SPORT.tees.members, from: SPORT.membersFrom },
     red: { label: "Red Tees" },
   };
   let SEASONS = null, seasonsLoading = null;
@@ -69,6 +87,11 @@
     aya: (v) => (v.yds + 20 * v.td - 45 * v.int) / v.att,
     nya: (v) => (v.yds - v.sky) / (v.att + v.sk),
     anya: (v) => (v.yds + 20 * v.td - 45 * v.int - v.sky) / (v.att + v.sk),
+    // Baseball OBP + SLG (att = at-bats). Must match FORMULAS in tools/golf_build.py.
+    ops: (v) => {
+      const pa = v.ab + v.bb + v.hbp + v.sf;
+      return (pa ? (v.h + v.bb + v.hbp) / pa : 0) + v.tb / v.att;
+    },
   };
 
   function rangeBoard(spec, tot, years) {
@@ -122,7 +145,10 @@
     const biggest = Math.max(0, ...Object.values(ranked.reduce((m, r) => ((m[r.rank] = (m[r.rank] || 0) + 1), m), {})));
     // Span boards need 50+ players and no single tie covering over 20% of the list.
     if (ranked.length < 50 || biggest > share * ranked.length) return null;
-    const fmt = (v) => v.toLocaleString("en-US", { minimumFractionDigits: spec.dec || 0, maximumFractionDigits: spec.dec || 0 });
+    const fmt = (v) => {
+      const s = v.toLocaleString("en-US", { minimumFractionDigits: spec.dec || 0, maximumFractionDigits: spec.dec || 0 });
+      return spec.nolead ? s.replace(/^0\./, ".") : s; // batting average style: .305
+    };
     // Shown under the hole name: the minimum actually used for this span, plus any board note.
     const min = spec.qFlat || (spec.q ? Math.ceil(qMin) : 0);
     const note = [min > 1 && spec.qLabel ? `Minimum ${min.toLocaleString("en-US")} ${spec.qLabel}` : "", spec.note || ""].filter(Boolean).join(" · ");
@@ -239,7 +265,7 @@
 
   // ---------- daily course ----------
   // Everyone gets the same 9 Members Tees holes each day (US Eastern date), seeded from the date.
-  const DAILY_EPOCH = "2026-11-27"; // The Daily 9 #1
+  const DAILY_EPOCH = SPORT.dailyEpoch; // The Daily 9 #1
   const todayET = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
   const dayNum = (d) => Math.round((Date.parse(d) - Date.parse(DAILY_EPOCH)) / 864e5) + 1;
   function seeded(str) {
@@ -257,7 +283,7 @@
     fams: TEES.members.fams, from: TEES.members.from, to: SEASONS.years[1], present: true,
   });
   // Saved progress: {date, picks: [{name, key}], posted, name}
-  const DAILY_KEY = "nflgolf.daily";
+  const DAILY_KEY = `${SPORT.key}.daily`;
   const loadDaily = () => { try { const d = JSON.parse(localStorage.getItem(DAILY_KEY)); return d && d.date === todayET() ? d : null; } catch { return null; } };
   const saveDaily = (d) => { try { localStorage.setItem(DAILY_KEY, JSON.stringify(d)); } catch {} };
 
@@ -277,7 +303,7 @@
     currentTee = t;
     POOL = POOL_ALL;
     // The Daily 9 #1 launched with uniform pins; keep it so saved rounds replay the same course.
-    round = buildRound(9, boardsFor(t), seeded("nfl-golf-daily:" + date), t.num <= 1);
+    round = buildRound(9, boardsFor(t), seeded(SPORT.dailySeed + date), SPORT.uniformFirstDaily && t.num <= 1);
     $("holeTee").textContent = teeText(t);
     $("reteeBtn").classList.add("hidden"); // one Daily 9 round per day
     $("holeCount").textContent = 9;
@@ -556,7 +582,7 @@
     if (round.tee.daily) {
       // Three lines, Wordle-style: fits in one glance in a group chat, and gives nothing away.
       return [
-        `⛳ NFL Golf Daily 9 #${round.tee.num} — ${fmtPar(totalPar())} (${$("finalRank").textContent})${round.tee.hard ? " 🔥" : ""}${caddies ? ` 🏌️×${caddies}` : ""}`,
+        `⛳ ${SPORT.name} Daily 9 #${round.tee.num} — ${fmtPar(totalPar())} (${$("finalRank").textContent})${round.tee.hard ? " 🔥" : ""}${caddies ? ` 🏌️×${caddies}` : ""}`,
         round.holes.map(icon).join(""),
         location.origin + location.pathname,
       ].join("\n");
@@ -567,7 +593,7 @@
       `   Hit: ${h.ob ? "OB" : "#" + h.guessRank} ${h.guess}`,
     ].join("\n"));
     return [
-      `NFL Golf ⛳ ${teeText(round.tee)} · ${round.holes.length} holes — ${fmtPar(totalPar())} (${$("finalRank").textContent})`
+      `${SPORT.name} ⛳ ${teeText(round.tee)} · ${round.holes.length} holes — ${fmtPar(totalPar())} (${$("finalRank").textContent})`
         + (round.tee.challenge ? ` · ${round.tee.challenge.outcome} vs. ${fmtPar(rivalPar(round.tee.challenge))}` : ""),
       round.holes.map(icon).join(""),
       "",
@@ -706,7 +732,7 @@
   function teeFromChallenge(c) {
     const T = c.t, last = SEASONS ? SEASONS.years[1] : DATA.lastSeason;
     return {
-      id: T.id, label: T.l || (TEES[T.id] || {}).label || "NFL Golf", fams: T.f,
+      id: T.id, label: T.l || (TEES[T.id] || {}).label || SPORT.name, fams: T.f,
       from: T.from || undefined, to: T.from ? T.to || last : undefined, present: !!T.from && !T.to,
       hard: !!T.hard, challenge: c,
     };
@@ -744,9 +770,9 @@
   $("challengeBtn").addEventListener("click", startChallenge);
   $("challengeSendBtn").addEventListener("click", async () => {
     const url = challengeLink(), btn = $("challengeSendBtn");
-    const text = `I shot ${fmtPar(totalPar())} on NFL Golf (${teeText({ ...round.tee, challenge: null })}, ${round.holes.length} holes). Same holes, same pins. Can you beat me?`;
+    const text = `I shot ${fmtPar(totalPar())} on ${SPORT.name} (${teeText({ ...round.tee, challenge: null })}, ${round.holes.length} holes). Same holes, same pins. Can you beat me?`;
     if (navigator.share) {
-      try { await navigator.share({ title: "NFL Golf challenge", text, url }); return; }
+      try { await navigator.share({ title: `${SPORT.name} challenge`, text, url }); return; }
       catch (e) { if (e.name === "AbortError") return; }
     }
     const box = $("shareText");
@@ -758,19 +784,19 @@
 
   // ---------- daily leaderboard (Supabase) ----------
   const LB = window.NFLGOLF_LEADERBOARD || {};
-  const lbOn = !!(LB.url && LB.key);
+  const lbOn = !!(LB.url && LB.key && SPORT.leaderboard);
   // New-style publishable keys (sb_publishable_…) go in the apikey header only; legacy anon JWTs also need Authorization.
   const lbHeaders = { apikey: LB.key, "Content-Type": "application/json", ...(/^eyJ/.test(LB.key || "") ? { Authorization: `Bearer ${LB.key}` } : {}) };
   const deviceId = (() => {
     try {
-      let id = localStorage.getItem("nflgolf.device");
-      if (!id) localStorage.setItem("nflgolf.device", (id = crypto.randomUUID()));
+      let id = localStorage.getItem(`${SPORT.key}.device`);
+      if (!id) localStorage.setItem(`${SPORT.key}.device`, (id = crypto.randomUUID()));
       return id;
     } catch { return crypto.randomUUID(); }
   })();
   async function lbFetch(date) {
     // Ranked by strokes to par; the miss % (score) breaks ties. Rows posted before golf scoring have no to_par.
-    const q = `day=eq.${date}&select=name,score,to_par,hard,device&order=to_par.asc.nullslast,score.asc,created_at.asc&limit=5000`;
+    const q = `day=eq.${date}${SPORT.lbSport ? `&sport=eq.${SPORT.lbSport}` : ""}&select=name,score,to_par,hard,device&order=to_par.asc.nullslast,score.asc,created_at.asc&limit=5000`;
     const r = await fetch(`${LB.url}/rest/v1/daily_scores?${q}`, { headers: lbHeaders });
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
@@ -778,13 +804,14 @@
   async function lbPost(date, name, score, toParTotal, hard) {
     const r = await fetch(`${LB.url}/rest/v1/daily_scores`, {
       method: "POST", headers: { ...lbHeaders, Prefer: "return=minimal" },
-      body: JSON.stringify({ day: date, name, score, to_par: toParTotal, hard: !!hard, device: deviceId }),
+      body: JSON.stringify({ day: date, name, score, to_par: toParTotal, hard: !!hard, device: deviceId,
+                             ...(SPORT.lbSport ? { sport: SPORT.lbSport } : {}) }),
     });
     // 409 = this device already posted today; treat as posted.
     if (!r.ok && r.status !== 409) throw new Error("HTTP " + r.status);
   }
 
-  const savedName = () => { try { return localStorage.getItem("nflgolf.name") || ""; } catch { return ""; } };
+  const savedName = () => { try { return localStorage.getItem(`${SPORT.key}.name`) || ""; } catch { return ""; } };
 
   async function renderBoardPanel(msg) {
     const box = $("dailyBoard"), d = loadDaily() || {};
@@ -803,7 +830,7 @@
       btn.disabled = true;
       try {
         await lbPost(round.tee.daily, name, total(), totalPar(), round.tee.hard);
-        try { localStorage.setItem("nflgolf.name", name); } catch {}
+        try { localStorage.setItem(`${SPORT.key}.name`, name); } catch {}
         saveDaily({ ...(loadDaily() || { date: round.tee.daily, picks: [] }), posted: true, name });
         renderBoardPanel();
       } catch (err) { btn.disabled = false; $("lbMsg").textContent = `Couldn't post (${err.message}). Try again.`; }
@@ -841,7 +868,7 @@
   }
 
   // ---------- setup screen ----------
-  const baseNote = `${DATA.categories.length} all-time stat categories · Regular-season stats from Pro Football Reference, as of ${DATA.asOf}.`;
+  const baseNote = `${DATA.categories.length} all-time stat categories · Regular-season stats from ${SPORT.source}, as of ${DATA.asOf}.`;
   function setChoices(on, note) {
     choices.forEach((b) => (b.disabled = !on));
     $("dataNote").textContent = note || baseNote;
@@ -878,12 +905,12 @@
   }));
   document.querySelectorAll('input[name="fam"], #yearFrom, #yearTo').forEach((el) => el.addEventListener("change", updateRed));
   // Hard mode toggle: remembered between visits.
-  try { $("hardMode").checked = localStorage.getItem("nflgolf.hard") === "1"; } catch {}
+  try { $("hardMode").checked = localStorage.getItem(`${SPORT.key}.hard`) === "1"; } catch {}
   const tip = (open) => { $("hardTip").classList.toggle("hidden", !open); $("hardHelp").setAttribute("aria-expanded", open); };
   $("hardHelp").addEventListener("click", (e) => { e.stopPropagation(); tip($("hardTip").classList.contains("hidden")); });
   document.addEventListener("click", (e) => { if (!$("hardTip").contains(e.target)) tip(false); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") tip(false); });
-  $("hardMode").addEventListener("change", () => { try { localStorage.setItem("nflgolf.hard", $("hardMode").checked ? "1" : "0"); } catch {} });
+  $("hardMode").addEventListener("change", () => { try { localStorage.setItem(`${SPORT.key}.hard`, $("hardMode").checked ? "1" : "0"); } catch {} });
   setChoices(true);
   renderDailyCard();
   // Members Tees (the default) needs season stats: fetch them in the background so the first round starts fast.

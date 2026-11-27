@@ -23,6 +23,23 @@ require a minimum volume that scales with the span (10+ seasons = PFR's career m
 board needs at least 50 players and no single tie covering more than 20% of the list.
 Career-only boards (AV, award shares, pick sixes, teams beaten, fumbles) appear only in the all-time tees.
 
+## NBA, MLB and NHL Golf
+
+All four games share `shared/game.js` and `shared/game.css`; each sport's `index.html` sets `window.GOLF`
+(name, storage key, Daily 9 seed, tees). The NBA/MLB/NHL pages are generated from `nfl/index.html` by
+`tools/make_sport_pages.py`, so re-run it after changing the NFL page.
+
+Their boards are all built from season-by-season stats by `tools/golf_build.py` (all-time boards in
+`data.json`, span data in `seasons.json`):
+
+| Sport | Pull | Build | Source |
+|---|---|---|---|
+| NBA | `python3 tools/fetch_nba.py` (~25 min) | `python3 tools/build_nba.py` | Basketball-Reference (NBA + BAA, no ABA) |
+| MLB | download the Lahman CSV zip into `data-src/mlb/lahman/`; `python3 tools/fetch_mlb_season.py 2026` for seasons Lahman lacks | `python3 tools/build_mlb.py` | Lahman (CC BY-SA 3.0) + Baseball-Reference |
+| NHL | `python3 tools/fetch_nhl.py` (~40 min) | `python3 tools/build_nhl.py` | NHL stats API (NHL only, no WHA) |
+
+The pullers resume where they stopped. Raw pulls in `data-src/nba|mlb|nhl/` are kept out of git.
+
 ## Data
 
 From [Pro Football Reference](https://www.pro-football-reference.com/leaders/).
