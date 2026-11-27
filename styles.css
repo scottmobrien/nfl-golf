@@ -145,6 +145,10 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
 .lb-list .rk, .lb-list .val { color: var(--muted); font-variant-numeric: tabular-nums; }
 .lb-list li.me { background: #e4f3e9; font-weight: 700; }
 
+.round-bar { display: flex; justify-content: space-between; margin-bottom: 10px; }
+.bar-btn { background: rgba(0,0,0,.28); color: #fff; padding: 7px 14px; border-radius: 999px; font-size: 14px; font-weight: 700; }
+.bar-btn:hover { background: rgba(0,0,0,.45); }
+
 .hole-head { display: flex; justify-content: space-between; align-items: center; }
 .hole-num { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 .hole-num span:first-child { color: var(--ink); font-size: 22px; }

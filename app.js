@@ -265,6 +265,7 @@
     // The Daily 9 #1 launched with uniform pins; keep it so saved rounds replay the same course.
     round = buildRound(9, boardsFor(t), seeded("nfl-golf-daily:" + date), t.num <= 1);
     $("holeTee").textContent = teeText(t);
+    $("reteeBtn").classList.add("hidden"); // one Daily 9 round per day
     $("holeCount").textContent = 9;
     // Replay saved swings so a refresh can't re-roll a hole.
     saved.picks.forEach((r, i) => { round.idx = i; scoreGuess(round.holes[i], r); });
@@ -290,7 +291,12 @@
     currentTee = t;
     POOL = t.from ? POOL_ALL : POOL_CAREER;
     round = buildRound(n, cats);
+    beginRound(t, n);
+  }
+
+  function beginRound(t, n) {
     $("holeTee").textContent = teeText(t);
+    $("reteeBtn").classList.toggle("hidden", !!t.daily); // one Daily 9 round per day
     $("holeCount").textContent = n;
     renderHole();
     show("hole");
@@ -458,6 +464,7 @@
     $("totalScore").textContent = fmtPts(t);
     $("shareText").hidden = true;
     $("dailyBoard").classList.toggle("hidden", !round.tee.daily);
+    $("reteeFinalBtn").classList.toggle("hidden", !!round.tee.daily);
     if (round.tee.daily) renderBoardPanel();
     show("final");
   }
@@ -555,6 +562,26 @@
   $("nextBtn").addEventListener("click", next);
   $("againBtn").addEventListener("click", () => { renderDailyCard(); show("setup"); });
   $("dailyBtn").addEventListener("click", startDaily);
+
+  // Re-Tee: a fresh course with the same tee, years, categories, hole count and Hard mode.
+  function reTee() {
+    const t = round.tee, n = round.holes.length;
+    if (t.daily) return;
+    const played = round.holes.some((h) => h.strokes != null) && !round.holes.every((h) => h.strokes != null);
+    if (played && !confirm("Start over from hole 1 with a fresh course? This round's scores will be lost.")) return;
+    round = buildRound(n, boardsFor(t));
+    beginRound(t, n);
+  }
+  $("reteeBtn").addEventListener("click", reTee);
+  $("reteeFinalBtn").addEventListener("click", reTee);
+
+  // Back to the home screen mid-round. The Daily 9 keeps its progress (resume from the card).
+  $("homeBtn").addEventListener("click", () => {
+    const played = round.holes.some((h) => h.strokes != null);
+    if (!round.tee.daily && played && !confirm("Leave this round? Your scores so far will be lost.")) return;
+    renderDailyCard();
+    show("setup");
+  });
   $("shareBtn").addEventListener("click", () => {
     const box = $("shareText");
     box.value = shareText();

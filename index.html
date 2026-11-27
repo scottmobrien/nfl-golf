@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="claude:viewport-fit-sides" content="cover">
   <title>NFL Golf</title>
-  <link rel="stylesheet" href="styles.css?v=13" />
+  <link rel="stylesheet" href="styles.css?v=14" />
 </head>
 <body>
   <header class="topbar">
@@ -97,6 +97,10 @@
 
     <!-- Hole -->
     <section id="hole" class="screen hidden">
+      <div class="round-bar">
+        <button id="homeBtn" class="bar-btn" type="button">← Home</button>
+        <button id="reteeBtn" class="bar-btn" type="button" title="Start over from hole 1 with a fresh course, same settings">↺ Re-Tee</button>
+      </div>
       <div class="card">
         <div class="hole-head">
           <div class="hole-num">Hole <span id="holeNum">1</span><small> / <span id="holeCount">9</span></small></div>
@@ -148,6 +152,7 @@
         <div id="dailyBoard" class="daily-board hidden"></div>
         <div class="final-actions">
           <button id="shareBtn" class="ghost">Share your card</button>
+          <button id="reteeFinalBtn" class="ghost" title="Play a fresh course with the same settings">↺ Re-Tee</button>
           <button id="againBtn" class="primary">Play again</button>
         </div>
       </div>
@@ -155,6 +160,6 @@
   </main>
 
   <script src="leaderboard-config.js?v=10"></script>
-  <script src="app.js?v=15"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>
