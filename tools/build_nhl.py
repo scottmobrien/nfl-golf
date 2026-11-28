@@ -58,13 +58,12 @@ SPECS = [
     dict(id="shooting_pct", name="Shooting Percentage", f="score", pct=True, dec=1, mult=100,
          num=[S("goalsWithShots")], den=[S("shots")], **SHOT_Q, note="Shots counted since 1959-60"),
     dict(id="games", name="Games Played (Skater)", f="skate", unit="GP", sum=[S("gamesPlayed")]),
-    dict(id="plus_minus", name="Plus/Minus", f="skate", unit="+/-", sum=[S("plusMinus")],
+    dict(id="plus_minus", since="1959-60", name="Plus/Minus", f="skate", unit="+/-", sum=[S("plusMinus")],
          note="Only players with a positive career total are ranked"),
     dict(id="pim", name="Penalty Minutes", f="skate", unit="PIM", sum=[S("penaltyMinutes")]),
-    dict(id="shots", name="Shots on Goal", f="skate", unit="S", sum=[S("shots")]),
-    # Skater defensive boards (blocked shots, takeaways) left out by choice; goaltending stays.
-    dict(id="hits", name="Hits", f="skate", unit="Hits", sum=[R("hits")]),
-    dict(id="giveaways", name="Giveaways", f="skate", unit="GV", sum=[R("giveaways")]),
+    dict(id="shots", since="1959-60", name="Shots on Goal", f="skate", unit="S", sum=[S("shots")]),
+    # Skater defensive boards (blocked shots, takeaways) and giveaways left out by choice; goaltending stays.
+    dict(id="hits", since="2005-06", name="Hits", f="skate", unit="Hits", sum=[R("hits")]),
     dict(id="g_wins", name="Wins (Goalie)", f="goal", unit="W", sum=[G("wins")]),
     dict(id="g_losses", name="Losses (Goalie)", f="goal", unit="L", sum=[G("losses")]),
     dict(id="shutouts", name="Shutouts", f="goal", unit="SO", sum=[G("shutouts")]),

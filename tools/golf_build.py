@@ -178,7 +178,10 @@ def build(sport, seasons, people, specs, source_label):
 
     cats = []
     for sp, b in all_time:
-        cat = {"id": sp["id"], "name": "Career " + sp["name"], "f": sp["f"],
+        name = "Career " + sp["name"]
+        if sp.get("since"):  # stat not recorded before then: "X (since 1973-74)", "X (Batting, since 1955)"
+            name = name[:-1] + f", since {sp['since']})" if name.endswith(")") else f"{name} (since {sp['since']})"
+        cat = {"id": sp["id"], "name": name, "f": sp["f"],
                "l": [[rank, index[names[pid]], fmt(sp, v)] for rank, pid, v in b["ranked"]]}
         if b["note"]:
             cat["n"] = b["note"]

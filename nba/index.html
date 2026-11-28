@@ -90,15 +90,15 @@
         <div class="tees" role="radiogroup" aria-label="Game mode">
           <label class="tee tee-tips"><input type="radio" name="tee" value="tips" />
             <span class="tee-name"><i class="tee-dot"></i>The Tips <small>(Sicko Mode)</small></span>
-            <span class="tee-copy">All statistical categories (including advanced stats like Win Shares, PER and VORP), all time. A challenging round for true NBA sickos.</span>
+            <span class="tee-copy">All statistical categories, all time. A challenging round for true NBA sickos.</span>
           </label>
           <label class="tee tee-champ"><input type="radio" name="tee" value="champ" />
             <span class="tee-name"><i class="tee-dot"></i>Championship</span>
-            <span class="tee-copy">All time periods, all categories except advanced stats. Still very tough, good luck.</span>
+            <span class="tee-copy">All time periods, all categories except games and minutes. Still very tough, good luck.</span>
           </label>
           <label class="tee tee-members"><input type="radio" name="tee" value="members" checked />
             <span class="tee-name"><i class="tee-dot"></i>Members Tees</span>
-            <span class="tee-copy">All categories except advanced stats, but only since 2000.</span>
+            <span class="tee-copy">All categories, but only since 2000.</span>
           </label>
           <label class="tee tee-red"><input type="radio" name="tee" value="red" />
             <span class="tee-name"><i class="tee-dot"></i>Red Tees</span>
@@ -114,7 +114,6 @@
             <label><input type="checkbox" name="fam" value="play" checked /> Playmaking</label>
             <label><input type="checkbox" name="fam" value="def" checked /> Defense</label>
             <label><input type="checkbox" name="fam" value="gen" /> Games &amp; Minutes</label>
-            <label><input type="checkbox" name="fam" value="adv" /> Advanced</label>
           </div>
           <div class="years">
             <label>From <select id="yearFrom"></select></label>
@@ -226,7 +225,7 @@
     </form>
   </dialog>
 
-  <script>window.GOLF = {"name": "NBA Golf", "key": "nbagolf", "dailySeed": "nba-golf-daily:", "dailyEpoch": "2026-11-27", "uniformFirstDaily": false, "source": "Basketball-Reference", "leaderboard": true, "lbSport": "nba", "allFams": ["score", "reb", "play", "def", "gen", "adv"], "tees": {"champ": ["score", "reb", "play", "def", "gen"], "members": ["score", "reb", "play", "def", "gen"]}, "membersFrom": 2000};</script>
+  <script>window.GOLF = {"name": "NBA Golf", "key": "nbagolf", "dailySeed": "nba-golf-daily:", "dailyEpoch": "2026-11-27", "uniformFirstDaily": false, "source": "Basketball-Reference", "leaderboard": true, "lbSport": "nba", "allFams": ["score", "reb", "play", "def", "gen"], "tees": {"champ": ["score", "reb", "play", "def"], "members": ["score", "reb", "play", "def", "gen"]}, "membersFrom": 2000};</script>
   <script src="../shared/leaderboard-config.js?v=12"></script>
   <script src="../shared/game.js?v=35"></script>
   <!-- Cloudflare Web Analytics: cookieless page-view counts (see docs/traffic-analytics.md) -->

@@ -104,7 +104,7 @@ SPECS = [
     dict(id="3b", name="Triples", f="bat", unit="3B", sum=[B("3B")]),
     dict(id="tb", name="Total Bases", f="bat", unit="TB", sum=[B("TB")]),
     dict(id="bb_b", name="Walks (Batting)", f="bat", unit="BB", sum=[B("BB")]),
-    dict(id="so_b", name="Strikeouts (Batting)", f="bat", unit="SO", sum=[B("SO")]),
+    dict(id="so_b", name="Strikeouts (Batting)", f="bat", unit="SO", sum=[B("SO")], note="Records incomplete before 1913"),
     dict(id="ab", name="At-Bats", f="bat", unit="AB", sum=[B("AB")]),
     dict(id="pa", name="Plate Appearances", f="bat", unit="PA", sum=[B("PA")]),
     dict(id="g_b", name="Games Played", f="bat", unit="G", sum=[B("G")]),
@@ -131,12 +131,12 @@ SPECS = [
     dict(id="hr_p", name="Home Runs Allowed", f="misc", unit="HR", sum=[P("HR")]),
     dict(id="bb_p", name="Walks Allowed", f="misc", unit="BB", sum=[P("BB")]),
     dict(id="wp", name="Wild Pitches", f="misc", unit="WP", sum=[P("WP")]),
-    dict(id="hbp", name="Hit by Pitch (Batting)", f="misc", unit="HBP", sum=[B("HBP")]),
-    dict(id="sh", name="Sacrifice Hits", f="misc", unit="SH", sum=[B("SH")]),
-    dict(id="sf", name="Sacrifice Flies", f="misc", unit="SF", sum=[B("SF")]),
-    dict(id="ibb", name="Intentional Walks (Batting)", f="misc", unit="IBB", sum=[B("IBB")]),
-    dict(id="gidp", name="Grounded Into Double Plays", f="misc", unit="GIDP", sum=[B("GIDP")]),
-    dict(id="cs", name="Caught Stealing", f="misc", unit="CS", sum=[B("CS")]),
+    dict(id="hbp", name="Times Hit by Pitch", f="misc", unit="HBP", sum=[B("HBP")]),
+    dict(id="sh", name="Sacrifice Bunts", f="misc", unit="SH", sum=[B("SH")]),
+    dict(id="sf", since="1954", name="Sacrifice Flies", f="misc", unit="SF", sum=[B("SF")]),
+    dict(id="ibb", since="1955", name="Intentional Walks (Batting)", f="misc", unit="IBB", sum=[B("IBB")]),
+    dict(id="gidp", since="1939", name="Grounded Into Double Plays", f="misc", unit="GIDP", sum=[B("GIDP")]),
+    dict(id="cs", name="Caught Stealing", f="misc", unit="CS", sum=[B("CS")], note="Records incomplete before 1951"),
 ]
 
 seasons = {yr: {pg: {pid: dict(st) for pid, st in rows_.items()} for pg, rows_ in pages.items()} for yr, pages in seasons.items()}
