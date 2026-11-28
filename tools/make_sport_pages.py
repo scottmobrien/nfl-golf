@@ -57,7 +57,7 @@ for sport, c in SPORTS.items():
     s = s.replace('aria-label="NFL Golf home"><span class="flag">⛳</span> NFL <em>Golf</em>',
                   f'aria-label="{short} Golf home"><span class="flag">⛳</span> {short} <em>Golf</em>')
     s = s.replace("Welcome to NFL Golf", f"Welcome to {short} Golf")
-    s = s.replace("is an NFL statistical category (e.g. rushing touchdowns)", f"is an {short} statistical category (e.g. {c['example']})")
+    s = s.replace("is an NFL statistical category (e.g. career rushing touchdowns)", f"is an {short} statistical category (e.g. {c['example']})")
     # Tee descriptions, in order: Tips, Championship, Members, Red (None keeps the NFL wording).
     copies = re.findall(r'<span class="tee-copy">(.*?)</span>', s)
     for old, new in zip(copies, c["tees"]):
