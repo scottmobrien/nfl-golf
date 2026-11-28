@@ -92,6 +92,7 @@ CAREER_NOTES = {
 def board_name(key, title):
     t = re.sub(r"^NFL ", "", title)
     t = re.sub(r" Career Leaders", "", t)
+    t = re.sub(r"^Games\b(?! Started)", "Games Played", t)  # plain "Games" read as unclear
     t = t if t.startswith("Most ") else "Career " + t
     is_qb = (key.startswith("pass_") and key not in NOT_QB) or key in QB_ONLY
     if is_qb and "QB" not in t:
@@ -252,7 +253,7 @@ SPECS = [
     dict(id="punt_ret_yds_per_ret", name="Yards per Punt Return", f="ret", unit="Y/R", dec=1, num=[RT["pry"]], den=[RT["pr"]], q=[RT["pr"]], qMin=7.5, qLabel="punt returns"),
     dict(id="ret", name="Kick & Punt Returns", f="ret", unit="Rt", sum=[RT["kr"], RT["pr"]]),
     dict(id="ret_yds", name="Kick & Punt Return Yards", f="ret", unit="RtY", sum=[RT["kry"], RT["pry"]]),
-    dict(id="g", name="Games", f="gen", unit="G", sum=[GP["g"]]),
+    dict(id="g", name="Games Played", f="gen", unit="G", sum=[GP["g"]]),
     dict(id="gs", name="Games Started", f="gen", unit="GS", sum=[GP["gs"]]),
 ]
 
