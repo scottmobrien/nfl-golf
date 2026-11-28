@@ -187,8 +187,28 @@
     return n;
   };
   const parFromPts = (p, ob, hp = 4, miss = null) => (ob || p >= OB_POINTS ? OB_TO_PAR : holeStrokes(p, hp, miss) - hp);
+  // Shot-by-shot holes (h.multi): a par 3 gets 1 guess, a par 4 gets 2, a par 5 gets 3. Hitting the exact rank
+  // holes out on any shot. Otherwise the last shot's distance from the pin sets the putts (green sizes differ by
+  // par, tuned by simulation so par 3s, 4s and 5s play about equally hard). Each entry: [miss % up to, or spots
+  // off up to] for 1, 2, 3, 4 putts; anything worse is 5 putts. A hole caps at triple bogey, except OB on the
+  // last shot (+5). OB on an earlier shot costs a penalty stroke. h.res holds the result to par.
+  const SHOT_NAMES = { 3: ["Tee Shot"], 4: ["Tee Shot", "Approach"], 5: ["Tee Shot", "Second Shot", "Approach"] };
+  const PUTT_LADDER = {
+    3: [[0.3, 1], [1, 2], [3, 0], [8, 0]],
+    4: [[0.8, 1], [3, 2], [8, 0], [18, 0]],
+    5: [[2, 1], [6, 3], [15, 0], [32, 0]],
+  };
+  function puttsFor(miss, len, hp) {
+    if (miss === 0) return 0;
+    const p = (100 * miss) / len, lad = PUTT_LADDER[hp];
+    for (let i = 0; i < lad.length; i++) if (p <= lad[i][0] || miss <= lad[i][1]) return i + 1;
+    return 5;
+  }
+  // After a shot that doesn't finish the hole you see everyone within 5% of the list (at least 3 spots) of it.
+  const revealRadius = (len) => Math.max(3, Math.round(len * 0.05));
   // Asking the caddy adds a stroke on that hole, on top of the result (so a caddied triple is +4).
-  const toPar = (h) => parFromPts(h.strokes, h.ob, h.hp || 4, h.miss) + (h.caddy ? 1 : 0);
+  const toPar = (h) => (h.res != null ? h.res : parFromPts(h.strokes, h.ob, h.hp || 4, h.miss)) + (h.caddy ? 1 : 0);
+  const isAce = (h) => h.strokes === 0 && !h.caddy && (!h.multi || h.shots.length === 1);
   const fmtPar = (n) => (n === 0 ? "E" : n > 0 ? `+${n}` : `−${-n}`);
   // Par 3s and 5s start with this Daily 9; earlier Daily 9s replay as all par 4s so saved rounds don't change.
   const PARS_FROM = "2026-11-28";
@@ -255,6 +275,7 @@
     return from[Math.floor(rnd() * from.length)];
   }
 
+  const newHole = (cat, hp, pin) => ({ cat, hp, par: pin, multi: true, shots: [], pen: 0, guess: null, strokes: null, ob: false });
   // pars = false builds the old all-par-4 course (Daily 9s before PARS_FROM), consuming rnd exactly as before.
   function buildRound(n, cats, rnd = Math.random, uniformPins = false, pars = true) {
     let order = [];
@@ -270,7 +291,7 @@
       holes: pars
         ? ((layout) => order.slice(0, n).map((cat, i) => {
             const hp = layout[i];
-            return { cat, hp, par: pickPinForPar(cat.leaders, hp, rnd).rank, guess: null, strokes: null, ob: false };
+            return newHole(cat, hp, pickPinForPar(cat.leaders, hp, rnd).rank);
           }))(parLayout(n, rnd))
         : order.slice(0, n).map((cat) => {
             const pinEntry = pickPin(cat.leaders, rnd, uniformPins);
@@ -355,9 +376,16 @@
     $("holeCount").textContent = 9;
     // Replay saved swings so a refresh can't re-roll a hole.
     (saved.caddy || []).forEach((i) => { if (round.holes[i]) round.holes[i].caddy = true; });
-    saved.picks.forEach((r, i) => { round.idx = i; scoreGuess(round.holes[i], r); });
-    round.idx = Math.min(saved.picks.length, 8);
-    if (saved.picks.length >= 9) { finish(); return; }
+    saved.picks.forEach((p, i) => {
+      const h = round.holes[i];
+      round.idx = i;
+      if (!h || p == null) return;
+      if (h.multi) (Array.isArray(p) ? p : [p]).forEach((r) => { if (h.strokes == null) takeShot(h, r); });
+      else scoreGuess(h, Array.isArray(p) ? p[0] : p);
+    });
+    const open = round.holes.findIndex((h) => h.strokes == null);
+    if (open < 0) { finish(); return; }
+    round.idx = open;
     renderHole();
     show("hole");
   }
@@ -404,6 +432,8 @@
     $("catNote").classList.toggle("hidden", !note);
     $("listSize").textContent = maxRank(h.cat);
     renderCaddy(h);
+    $("shotName").classList.toggle("hidden", !h.multi);
+    if (h.multi) renderShot(h); else $("reveal").classList.add("hidden");
     $("result").classList.add("hidden");
     $("guessForm").classList.remove("hidden");
     $("guessInput").value = "";
@@ -432,13 +462,70 @@
     if (r.error) { flashInput(r.error); return; }
     const h = round.holes[round.idx];
     if (h.strokes != null) return;
-    scoreGuess(h, r);
+    const pick = { name: r.name, key: r.key };
+    if (h.multi) takeShot(h, r); else scoreGuess(h, r);
     if (round.tee.daily) {
       const d = loadDaily() || { date: round.tee.daily, picks: [] };
-      d.picks[round.idx] = { name: r.name, key: r.key };
+      d.picks[round.idx] = h.multi ? [...(Array.isArray(d.picks[round.idx]) ? d.picks[round.idx] : []), pick] : pick;
+      d.holes = round.holes.filter((x) => x.strokes != null).length;
       saveDaily(d);
     }
-    renderResult(h);
+    if (h.strokes != null) renderResult(h);
+    else { hideAc(); $("guessInput").value = ""; renderShot(h); $("guessInput").focus(); }
+  }
+
+  // One swing on a shot-by-shot hole. Finishes the hole when it's holed or it was the last shot.
+  function takeShot(h, r) {
+    const hit = h.cat.leaders.find((p) => norm(p.name) === r.key);
+    const shot = { name: r.name, rank: hit ? hit.rank : null };
+    h.shots.push(shot);
+    const n = h.shots.length, last = n >= h.hp - 2;
+    if (!hit && !last) { h.pen++; return; }
+    if (!(hit && hit.rank === h.par) && !last) return;
+    h.guess = shot.name;
+    h.guessRank = shot.rank;
+    h.ob = !hit;
+    if (h.ob) { h.strokes = OB_POINTS; h.res = OB_TO_PAR; }
+    else {
+      h.miss = Math.abs(hit.rank - h.par);
+      h.strokes = pts((100 * h.miss) / h.cat.leaders.length);
+      h.putts = puttsFor(h.miss, h.cat.leaders.length, h.hp);
+      h.res = Math.min(n + h.pen + h.putts, h.hp + 3) - h.hp;
+    }
+    setPinNames(h);
+  }
+  function setPinNames(h) {
+    const pinNames = h.cat.leaders.filter((p) => p.rank === h.par).map((p) => p.name);
+    h.pinNames = pinNames;
+    h.pinName = pinNames.length === 1 ? pinNames[0] : `${pinNames[0]} +${pinNames.length - 1} tied`;
+  }
+
+  // Mid-hole: name the next shot and show what the earlier shots revealed (the pin's own row stays hidden).
+  function renderShot(h) {
+    const k = h.shots.length, total = h.hp - 2;
+    $("shotName").innerHTML = total > 1
+      ? `<b>${SHOT_NAMES[h.hp][k]}</b> <small>shot ${k + 1} of ${total}${h.pen ? ` · ${h.pen} penalty stroke${h.pen > 1 ? "s" : ""}` : ""}</small>`
+      : `<b>${SHOT_NAMES[h.hp][0]}</b> <small>one swing on a par 3</small>`;
+    const box = $("reveal");
+    box.classList.toggle("hidden", !k);
+    if (!k) return;
+    const len = h.cat.leaders.length, rad = revealRadius(len);
+    box.innerHTML = h.shots.map((s, i) => {
+      const what = SHOT_NAMES[h.hp][i];
+      if (s.rank == null) return `<div class="reveal-shot"><div class="reveal-head">${what}: <b>${esc(s.name)}</b> isn't on this list. Out of bounds, +1 penalty stroke.</div></div>`;
+      const off = s.rank - h.par, dir = off < 0 ? "above" : "below";
+      const rows = h.cat.leaders.filter((p) => Math.abs(p.rank - s.rank) <= rad);
+      const seen = new Set();
+      const lis = rows.map((p) => {
+        if (p.rank === h.par) {
+          if (seen.has(p.rank)) return "";
+          seen.add(p.rank);
+          return `<li class="pin-row"><span class="rk">#${p.rank}</span><span>🚩 The pin</span></li>`;
+        }
+        return `<li class="${norm(p.name) === norm(s.name) ? "guess" : ""}"><span class="rk">#${p.rank}</span><span>${esc(p.name)}</span></li>`;
+      }).join("");
+      return `<div class="reveal-shot"><div class="reveal-head">${what}: <b>${esc(s.name)}</b> is #${s.rank}, ${Math.abs(off)} spot${Math.abs(off) === 1 ? "" : "s"} ${dir} the pin. Nearby (within ${rad}):</div><ol class="reveal-list">${lis}</ol></div>`;
+    }).reverse().join("");
   }
 
   function scoreGuess(h, r) {
@@ -454,17 +541,14 @@
       h.strokes = OB_POINTS;
       h.ob = true;
     }
-    // Pin names, for the scorecard and shared card.
-    const pinNames = h.cat.leaders.filter((p) => p.rank === h.par).map((p) => p.name);
-    h.pinNames = pinNames;
-    h.pinName = pinNames.length === 1 ? pinNames[0] : `${pinNames[0]} +${pinNames.length - 1} tied`;
+    setPinNames(h); // for the scorecard and shared card
   }
 
   // Named from the final score on the hole, caddy stroke included (a caddied ace is an eagle).
   function label(h) {
     if (h.ob) return ["Out of bounds", "bad"];
     const p = toPar(h);
-    if (h.strokes === 0 && !h.caddy) return ["Hole in one!", "good"];
+    if (isAce(h)) return ["Hole in one!", "good"];
     const names = { "-4": "Condor", "-3": "Albatross", "-2": "Eagle", "-1": "Birdie", 0: "Par", 1: "Bogey", 2: "Double bogey", 3: "Triple bogey" };
     return [names[p] || "Quadruple bogey", p < 0 ? "good" : p >= 2 ? "bad" : ""];
   }
@@ -517,6 +601,7 @@
     $("guessInput").disabled = true;
     $("guessBtn").disabled = true;
     $("guessForm").classList.add("hidden");
+    $("shotName").classList.add("hidden");
 
     const [txt, cls] = label(h);
     $("resultLabel").textContent = txt;
@@ -529,9 +614,13 @@
     const atPin = pinNames.length <= 3
       ? pinNames.join(" / ")
       : `${pinNames.slice(0, 2).join(" / ")} and ${pinNames.length - 2} others tied`;
-    $("resultDetail").innerHTML = h.ob
+    const shotLine = h.multi && h.hp > 3
+      ? h.shots.map((s, i) => `${SHOT_NAMES[h.hp][i]}: ${esc(s.name)} ${s.rank == null ? "(OB)" : "#" + s.rank}`).join(" → ")
+        + (h.ob ? "" : h.miss === 0 ? " → in the hole!" : ` → ${h.putts} putt${h.putts === 1 ? "" : "s"}`) + "<br>"
+      : h.multi && !h.ob ? (h.miss === 0 ? "" : `${h.putts} putt${h.putts === 1 ? "" : "s"}. `) : "";
+    $("resultDetail").innerHTML = shotLine + (h.ob
       ? `<b>${esc(h.guess)}</b> isn't in the top ${maxRank(h.cat)}. The pin (#${h.par}) was ${esc(atPin)}.`
-      : `<b>${esc(h.guess)}</b> is #${h.guessRank}, ${h.miss} spot${h.miss === 1 ? "" : "s"} off on a ${h.cat.leaders.length}-player list. The pin (#${h.par}) was ${esc(atPin)}.`;
+      : `<b>${esc(h.guess)}</b> is #${h.guessRank}, ${h.miss} spot${h.miss === 1 ? "" : "s"} off on a ${h.cat.leaders.length}-player list. The pin (#${h.par}) was ${esc(atPin)}.`);
 
     const lo = h.ob ? h.par : Math.min(h.par, h.guessRank);
     const hi = h.ob ? h.par : Math.max(h.par, h.guessRank);
@@ -575,7 +664,7 @@
     const who = (name) => `<span class="sc-name">${esc(name)}</span>`;
     const pins = `<tr><td class="row-head">Pin</td>${hs.map((h, i) => cell(h, i, "#" + h.par + (h.strokes == null ? "" : who(h.pinName)))).join("")}<td></td></tr>`;
     const hits = `<tr><td class="row-head">Hit</td>${hs.map((h, i) => cell(h, i, h.strokes == null ? "" : (h.ob ? "OB" : "#" + h.guessRank) + who(h.guess), h.ob ? "ob" : "")).join("")}<td></td></tr>`;
-    const strokes = `<tr><td class="row-head">Score</td>${hs.map((h, i) => cell(h, i, (h.strokes == null ? (h.caddy ? "+1" : "") : fmtPar(toPar(h))) + (h.caddy ? " 🏌️" : ""), h.strokes === 0 && !h.caddy ? "ace" : h.ob ? "ob" : h.strokes != null && toPar(h) < 0 ? "under" : "")).join("")}<td><b>${fmtPar(totalPar())}</b></td></tr>`;
+    const strokes = `<tr><td class="row-head">Score</td>${hs.map((h, i) => cell(h, i, (h.strokes == null ? (h.caddy ? "+1" : "") : fmtPar(toPar(h))) + (h.caddy ? " 🏌️" : ""), isAce(h) ? "ace" : h.ob ? "ob" : h.strokes != null && toPar(h) < 0 ? "under" : "")).join("")}<td><b>${fmtPar(totalPar())}</b></td></tr>`;
     const ch = round.tee.challenge;
     const rival = ch && !live
       ? `<tr class="rival-row"><td class="row-head">Rival</td>${hs.map((h, i) => cell(h, i, fmtPar(rivalHole(ch, i)) + ((ch.c || []).includes(i) ? " 🏌️" : ""), rivalHole(ch, i) < toPar(h) ? "beat" : "")).join("")}<td><b>${fmtPar(rivalPar(ch))}</b></td></tr>`
@@ -584,14 +673,14 @@
   }
 
   // ---------- final ----------
-  const rivalHole = (ch, i) => parFromPts(ch.s[i], false, ch.h[i][2] || 4, ch.m ? ch.m[i] : null) + ((ch.c || []).includes(i) ? 1 : 0);
+  const rivalHole = (ch, i) => (ch.p && ch.p[i] != null ? ch.p[i] : parFromPts(ch.s[i], false, ch.h[i][2] || 4, ch.m ? ch.m[i] : null)) + ((ch.c || []).includes(i) ? 1 : 0);
   const rivalPar = (ch) => ch.s.reduce((a, _, i) => a + rivalHole(ch, i), 0);
   function finish() {
     const n = round.holes.length, t = totalPar(), avg = t / n;
     $("finalScore").textContent = fmtPar(t);
     $("finalSub").textContent = `to par over ${n} holes · shot ${coursePar() + t} on a par-${coursePar()} course`;
     $("finalTee").textContent = teeText(round.tee);
-    const aces = round.holes.filter((h) => h.strokes === 0).length;
+    const aces = round.holes.filter((h) => h.strokes === 0 && (!h.multi || h.shots.length === 1)).length;
     const [rank, blurb] =
       avg <= -0.5 ? ["Tour Pro", "You know these leaderboards cold."] :
       avg <= 0.25 ? ["Scratch Golfer", "Seriously impressive."] :
@@ -626,7 +715,7 @@
   }
 
   function shareText() {
-    const icon = (h) => { const p = toPar(h); return h.ob ? "🟥" : h.strokes === 0 && !h.caddy ? "⛳" : p < 0 ? "🟩" : p === 0 ? "⬜" : p === 1 ? "🟨" : "🟧"; };
+    const icon = (h) => { const p = toPar(h); return h.ob ? "🟥" : isAce(h) ? "⛳" : p < 0 ? "🟩" : p === 0 ? "⬜" : p === 1 ? "🟨" : "🟧"; };
     const res = (h) => `${label(h)[0].replace("!", "")} (${fmtPar(toPar(h))})${h.caddy ? " 🏌️" : ""}`;
     const caddies = round.holes.filter((h) => h.caddy).length;
     if (round.tee.daily) {
@@ -769,11 +858,12 @@
   function challengeLink() {
     const t = round.tee;
     const spec = {
-      v: 2,
+      v: 3,  // v3: shot-by-shot holes; v2 one-guess par 3/4/5; v1 all par 4
       t: { id: t.id, l: t.label, f: t.fams, from: t.from || 0, to: t.from && !t.present ? t.to : 0, hard: t.hard ? 1 : 0 },
       h: round.holes.map((h) => [h.cat.id, h.par, h.hp || 4]),  // v1 links had no par: all par 4s
       s: round.holes.map((h) => h.strokes),
-      m: round.holes.map((h) => (h.ob ? null : h.miss)),  // spots off, for the par-3 near-miss rule
+      m: round.holes.map((h) => (h.ob ? null : h.miss)),  // spots off, for the v2 par-3 near-miss rule
+      p: round.holes.map((h) => (h.res != null ? h.res : null)),  // v3: each hole's result to par (no caddy)
       c: round.holes.flatMap((h, i) => (h.caddy ? [i] : [])),  // holes where the sender asked the caddy
     };
     return `${location.origin}${location.pathname}?challenge=${enc64(spec)}`;
@@ -809,7 +899,7 @@
       if (!cat) return null;
       // If the stats were refreshed since the link was made, snap to the nearest rank that still exists.
       const pin = cat.leaders.reduce((best, p) => (Math.abs(p.rank - par) < Math.abs(best.rank - par) ? p : best));
-      return { cat, hp, par: pin.rank, guess: null, strokes: null, ob: false };
+      return c.v >= 3 ? newHole(cat, hp, pin.rank) : { cat, hp, par: pin.rank, guess: null, strokes: null, ob: false };
     });
     if (holes.includes(null)) { $("challengeNote").textContent = "This challenge uses a leaderboard that's no longer in the game. Ask for a new link."; return; }
     currentTee = t;
@@ -910,11 +1000,13 @@
       const mins = 24 * 60 - (et.getHours() * 60 + et.getMinutes());
       return `${Math.floor(mins / 60)}h ${mins % 60}m`;
     })();
-    const done = d && d.picks.filter(Boolean).length >= 9;
+    // d.holes = holes finished (shot-by-shot Daily 9s can stop mid-hole); older saves have one pick per hole.
+    const finished = d ? (d.holes ?? d.picks.filter(Boolean).length) : 0;
+    const done = finished >= 9;
     const started = d && d.picks.length && !done;
     $("dailyNum").textContent = n;
     $("dailyDate").textContent = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-    $("dailyBtn").textContent = done ? "See your card & leaderboard" : started ? `Resume (hole ${d.picks.length + 1} of 9)` : "Play today's Daily 9";
+    $("dailyBtn").textContent = done ? "See your card & leaderboard" : started ? `Resume (hole ${finished + 1} of 9)` : "Play today's Daily 9";
     $("dailyNote").textContent = note || (done ? `You've played today's Daily 9. A new one tees off in ${left}.` : "Same 9 holes and pins for everyone · Members Tees (2000–present) · One round per day.");
   }
 
@@ -971,7 +1063,7 @@
     const raw = new URLSearchParams(location.search).get("challenge");
     if (raw) {
       const c = dec64(raw);
-      if (c && (c.v === 1 || c.v === 2) && Array.isArray(c.h) && c.h.length && c.s.length === c.h.length) { pendingChallenge = c; showChallengeCard(); }
+      if (c && [1, 2, 3].includes(c.v) && Array.isArray(c.h) && c.h.length && c.s.length === c.h.length) { pendingChallenge = c; showChallengeCard(); }
     }
   } catch { /* a mangled link just opens the normal home screen */ }
   }

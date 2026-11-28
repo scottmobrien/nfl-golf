@@ -266,3 +266,17 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
   .cat-name { font-size: 23px; }
 }
 .scorecard .par-row td { font-weight: 700; color: var(--muted); }
+
+/* shot-by-shot holes */
+.shot-name { margin: 0 0 8px; font-size: 15px; }
+.shot-name b { font-size: 17px; }
+.shot-name small { color: var(--muted); font-weight: 600; margin-left: 6px; }
+.reveal { margin: 0 0 14px; display: grid; gap: 10px; }
+.reveal-shot { padding: 10px 12px; border-radius: 12px; background: #eef6ee; border: 1px solid #cfe3cf; }
+.reveal-head { font-size: 14px; margin-bottom: 6px; }
+.reveal-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow: auto; columns: 2; column-gap: 16px; font-size: 14px; }
+.reveal-list li { display: grid; grid-template-columns: 44px 1fr; gap: 6px; padding: 2px 0; break-inside: avoid; }
+.reveal-list .rk { color: var(--muted); font-variant-numeric: tabular-nums; }
+.reveal-list li.guess { font-weight: 800; }
+.reveal-list li.pin-row { font-weight: 800; color: #b3261e; }
+@media (max-width: 520px) { .reveal-list { columns: 1; } }
