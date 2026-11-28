@@ -31,6 +31,8 @@ def rows(name):
         yield from csv.DictReader(f)
 
 
+# Traditional major leagues only; the Negro Leagues (NNL, NAL, NN2, ECL...) that Lahman added are left out.
+MLB_LEAGUES = {"NL", "AL", "AA", "NA", "UA", "PL", "FL"}
 people = {}
 bbref = {}
 for r in rows("People"):
@@ -42,18 +44,24 @@ for r in rows("People"):
 seasons = collections.defaultdict(lambda: {"bat": collections.defaultdict(lambda: collections.defaultdict(float)),
                                            "pitch": collections.defaultdict(lambda: collections.defaultdict(float))})
 for r in rows("Batting"):  # one row per team stint; sum them
+    if r["lgID"] not in MLB_LEAGUES:
+        continue
     yr, pid = int(r["yearID"]), r["playerID"]
     st = seasons[yr]["bat"][pid]
     for c in BAT:
         st[c] += n(r[c])
     people[pid]["years"].add(yr)
 for r in rows("Pitching"):
+    if r["lgID"] not in MLB_LEAGUES:
+        continue
     yr, pid = int(r["yearID"]), r["playerID"]
     st = seasons[yr]["pitch"][pid]
     for c in PIT:
         st[c] += n(r[c])
     people[pid]["years"].add(yr)
 for r in rows("Appearances"):
+    if r["lgID"] not in MLB_LEAGUES:
+        continue
     games = {POS[c]: n(r[c]) for c in POS}
     best = max(games, key=games.get)
     if games[best]:

@@ -62,9 +62,8 @@ SPECS = [
          note="Only players with a positive career total are ranked"),
     dict(id="pim", name="Penalty Minutes", f="skate", unit="PIM", sum=[S("penaltyMinutes")]),
     dict(id="shots", name="Shots on Goal", f="skate", unit="S", sum=[S("shots")]),
+    # Skater defensive boards (blocked shots, takeaways) left out by choice; goaltending stays.
     dict(id="hits", name="Hits", f="skate", unit="Hits", sum=[R("hits")]),
-    dict(id="blocks", name="Blocked Shots", f="skate", unit="BLK", sum=[R("blockedShots")]),
-    dict(id="takeaways", name="Takeaways", f="skate", unit="TK", sum=[R("takeaways")]),
     dict(id="giveaways", name="Giveaways", f="skate", unit="GV", sum=[R("giveaways")]),
     dict(id="g_wins", name="Wins (Goalie)", f="goal", unit="W", sum=[G("wins")]),
     dict(id="g_losses", name="Losses (Goalie)", f="goal", unit="L", sum=[G("losses")]),

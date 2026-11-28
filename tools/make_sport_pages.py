@@ -26,7 +26,7 @@ SPORTS = {
         desc="Name the player closest to a random spot on an all-time MLB leaderboard. Scored like golf, with a Daily 9 for everyone.",
         fams=[("bat", "Hitting", True), ("run", "Baserunning", True), ("pitch", "Pitching", True), ("misc", "Odds &amp; Ends", False)],
         champ=["bat", "run", "pitch"], members=["bat", "run", "pitch"],
-        tees=["All statistical categories (including odds and ends like sacrifice flies and wild pitches), all time, Negro Leagues included. A challenging round for true MLB sickos.",
+        tees=["All statistical categories (including odds and ends like sacrifice flies and wild pitches), all time. A challenging round for true MLB sickos.",
               "All time periods, hitting, baserunning and pitching (no odds and ends). Still very tough, good luck.",
               "Hitting, baserunning and pitching, but only since 2000.",
               None],
