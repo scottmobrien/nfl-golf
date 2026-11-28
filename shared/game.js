@@ -169,15 +169,29 @@
   const OB_POINTS = 100;
   const pts = (x) => Math.round(x * 10) / 10;
   const fmtPts = (x) => (Number.isInteger(x) ? String(x) : x.toFixed(1));
-  // Golf scoring: every hole is a par 4. The miss (as a % of the list, kept in h.strokes) sets the result;
-  // big misses cap at triple bogey, and OB (player not on the list) is +5.
+  // Golf scoring. Each hole is a par 3, 4 or 5 (h.hp; set by how deep the pin is). The miss, as a % of the
+  // list (kept in h.strokes), sets the strokes taken: an exact hit is a hole in one on any par. Par 3s are
+  // tight, par 5s forgiving. Big misses cap at triple bogey, and OB (player not on the list) is +5.
   const OB_TO_PAR = 5;
-  const parFromPts = (p, ob) =>
-    ob || p >= OB_POINTS ? OB_TO_PAR : p === 0 ? -3 : p <= 1 ? -2 : p <= 3 ? -1 : p <= 7 ? 0 : p <= 15 ? 1 : p <= 30 ? 2 : 3;
+  const STROKE_LADDER = {  // [miss % up to, strokes]; anything worse is a triple bogey
+    3: [[0, 1], [0.5, 2], [1.5, 3], [4, 4], [10, 5]],
+    4: [[0, 1], [1, 2], [3, 3], [7, 4], [15, 5], [30, 6]],
+    5: [[0, 1], [1.5, 2], [4, 3], [9, 4], [18, 5], [35, 6], [55, 7]],
+  };
+  // Tuned by simulation so par 3s, 4s and 5s play about equally hard. On a par 3 a near miss on a short list
+  // still counts: 1 spot off is at worst a birdie, 2 spots off at worst a par (miss = spots off, if known).
+  const holeStrokes = (p, hp, miss) => {
+    let n = hp + 3;
+    for (const [m, k] of STROKE_LADDER[hp]) if (p <= m) { n = k; break; }
+    if (hp === 3 && miss != null && miss <= 2) n = Math.min(n, miss + 1);
+    return n;
+  };
+  const parFromPts = (p, ob, hp = 4, miss = null) => (ob || p >= OB_POINTS ? OB_TO_PAR : holeStrokes(p, hp, miss) - hp);
   // Asking the caddy adds a stroke on that hole, on top of the result (so a caddied triple is +4).
-  const toPar = (h) => parFromPts(h.strokes, h.ob) + (h.caddy ? 1 : 0);
+  const toPar = (h) => parFromPts(h.strokes, h.ob, h.hp || 4, h.miss) + (h.caddy ? 1 : 0);
   const fmtPar = (n) => (n === 0 ? "E" : n > 0 ? `+${n}` : `−${-n}`);
-  const HOLE_PAR = 4;
+  // Par 3s and 5s start with this Daily 9; earlier Daily 9s replay as all par 4s so saved rounds don't change.
+  const PARS_FROM = "2026-11-28";
 
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
@@ -216,7 +230,33 @@
     }
   }
 
-  function buildRound(n, cats, rnd = Math.random, uniformPins = false) {
+  // Course layout: a nine is two par 3s, five par 4s and two par 5s (par 36); other lengths scale the same
+  // way, so course par is always 4 per hole. The par sets where the pin goes: par 3 = top of the list
+  // (#1-25), par 4 = the middle (#26-100), par 5 = deep (#101+). Short lists use the top 25% / to 60% instead.
+  function parBand(leaders, hp) {
+    const L = leaders[leaders.length - 1].rank;
+    const c3 = Math.min(25, Math.ceil(L * 0.25)), c4 = Math.max(c3 + 1, Math.min(100, Math.floor(L * 0.6)));
+    return hp === 3 ? [1, c3] : hp === 4 ? [c3 + 1, c4] : [c4 + 1, L];
+  }
+  // Yardage is flavor: a deeper pin within the par's range plays longer.
+  function holeYards(h) {
+    const [lo, hi] = parBand(h.cat.leaders, h.hp), f = hi > lo ? (h.par - lo) / (hi - lo) : 0.5;
+    const [y0, y1] = { 3: [125, 225], 4: [340, 470], 5: [500, 610] }[h.hp];
+    return Math.round((y0 + f * (y1 - y0)) / 5) * 5;
+  }
+  function parLayout(n, rnd) {
+    const k = Math.round((n * 2) / 9);
+    return shuffle([...Array(k).fill(3), ...Array(n - 2 * k).fill(4), ...Array(k).fill(5)], rnd);
+  }
+  function pickPinForPar(leaders, hp, rnd) {
+    const [lo, hi] = parBand(leaders, hp);
+    const band = leaders.filter((p) => p.rank >= lo && p.rank <= hi);
+    const from = band.length ? band : leaders;
+    return from[Math.floor(rnd() * from.length)];
+  }
+
+  // pars = false builds the old all-par-4 course (Daily 9s before PARS_FROM), consuming rnd exactly as before.
+  function buildRound(n, cats, rnd = Math.random, uniformPins = false, pars = true) {
     let order = [];
     while (order.length < n) {
       let next = shuffle(cats, rnd);
@@ -227,15 +267,21 @@
     return {
       idx: 0,
       tee: currentTee,
-      holes: order.slice(0, n).map((cat) => {
-        const pinEntry = pickPin(cat.leaders, rnd, uniformPins);
-        return { cat, par: pinEntry.rank, guess: null, strokes: null, ob: false };
-      }),
+      holes: pars
+        ? ((layout) => order.slice(0, n).map((cat, i) => {
+            const hp = layout[i];
+            return { cat, hp, par: pickPinForPar(cat.leaders, hp, rnd).rank, guess: null, strokes: null, ob: false };
+          }))(parLayout(n, rnd))
+        : order.slice(0, n).map((cat) => {
+            const pinEntry = pickPin(cat.leaders, rnd, uniformPins);
+            return { cat, hp: 4, par: pinEntry.rank, guess: null, strokes: null, ob: false };
+          }),
     };
   }
 
   const total = () => pts(round.holes.reduce((s, h) => s + (h.strokes ?? 0), 0)); // miss %, the tiebreak
   // Unplayed holes count only a caddy stroke already taken.
+  const coursePar = () => round.holes.reduce((s, h) => s + (h.hp || 4), 0);
   const totalPar = () => round.holes.reduce((s, h) => s + (h.strokes == null ? (h.caddy ? 1 : 0) : toPar(h)), 0);
   const maxRank = (cat) => cat.leaders[cat.leaders.length - 1].rank;
 
@@ -303,7 +349,7 @@
     currentTee = t;
     POOL = POOL_ALL;
     // The Daily 9 #1 launched with uniform pins; keep it so saved rounds replay the same course.
-    round = buildRound(9, boardsFor(t), seeded(SPORT.dailySeed + date), SPORT.uniformFirstDaily && t.num <= 1);
+    round = buildRound(9, boardsFor(t), seeded(SPORT.dailySeed + date), SPORT.uniformFirstDaily && t.num <= 1, date >= PARS_FROM);
     $("holeTee").textContent = teeText(t);
     $("reteeBtn").classList.add("hidden"); // one Daily 9 round per day
     $("holeCount").textContent = 9;
@@ -346,6 +392,8 @@
   function renderHole() {
     const h = round.holes[round.idx];
     $("holeNum").textContent = round.idx + 1;
+    $("holePar").textContent = h.hp || 4;
+    $("holeYds").textContent = holeYards(h);
     $("parRank").textContent = h.par;
     $("parRank2").textContent = h.par;
     // Default: show the pin player's stat, e.g. "#85 (48 TD)". Hard mode hides it.
@@ -416,7 +464,8 @@
   function label(h) {
     if (h.ob) return ["Out of bounds", "bad"];
     const p = toPar(h);
-    const names = { "-3": "Hole in one!", "-2": "Eagle", "-1": "Birdie", 0: "Par", 1: "Bogey", 2: "Double bogey", 3: "Triple bogey" };
+    if (h.strokes === 0 && !h.caddy) return ["Hole in one!", "good"];
+    const names = { "-4": "Condor", "-3": "Albatross", "-2": "Eagle", "-1": "Birdie", 0: "Par", 1: "Bogey", 2: "Double bogey", 3: "Triple bogey" };
     return [names[p] || "Quadruple bogey", p < 0 ? "good" : p >= 2 ? "bad" : ""];
   }
 
@@ -520,6 +569,7 @@
       return `<td class="${extra}${cur}">${inner}</td>`;
     };
     const head = `<tr><th class="row-head">Hole</th>${hs.map((_, i) => `<th>${i + 1}</th>`).join("")}<th>Tot</th></tr>`;
+    const parRow = `<tr class="par-row"><td class="row-head">Par</td>${hs.map((h, i) => cell(h, i, h.hp || 4)).join("")}<td>${coursePar()}</td></tr>`;
     const cats = `<tr class="cat-row"><td class="row-head">Stat</td>${hs.map((h, i) => cell(h, i, esc(h.cat.name.replace(/^Career /, "")))).join("")}<td></td></tr>`;
     // Player names only appear once a hole is played, so the live card never gives away the pin.
     const who = (name) => `<span class="sc-name">${esc(name)}</span>`;
@@ -530,16 +580,16 @@
     const rival = ch && !live
       ? `<tr class="rival-row"><td class="row-head">Rival</td>${hs.map((h, i) => cell(h, i, fmtPar(rivalHole(ch, i)) + ((ch.c || []).includes(i) ? " 🏌️" : ""), rivalHole(ch, i) < toPar(h) ? "beat" : "")).join("")}<td><b>${fmtPar(rivalPar(ch))}</b></td></tr>`
       : "";
-    table.innerHTML = head + cats + pins + hits + strokes + rival;
+    table.innerHTML = head + parRow + cats + pins + hits + strokes + rival;
   }
 
   // ---------- final ----------
-  const rivalHole = (ch, i) => parFromPts(ch.s[i]) + ((ch.c || []).includes(i) ? 1 : 0);
+  const rivalHole = (ch, i) => parFromPts(ch.s[i], false, ch.h[i][2] || 4, ch.m ? ch.m[i] : null) + ((ch.c || []).includes(i) ? 1 : 0);
   const rivalPar = (ch) => ch.s.reduce((a, _, i) => a + rivalHole(ch, i), 0);
   function finish() {
     const n = round.holes.length, t = totalPar(), avg = t / n;
     $("finalScore").textContent = fmtPar(t);
-    $("finalSub").textContent = `to par over ${n} holes · shot ${n * HOLE_PAR + t} on a par-${n * HOLE_PAR} course`;
+    $("finalSub").textContent = `to par over ${n} holes · shot ${coursePar() + t} on a par-${coursePar()} course`;
     $("finalTee").textContent = teeText(round.tee);
     const aces = round.holes.filter((h) => h.strokes === 0).length;
     const [rank, blurb] =
@@ -576,7 +626,7 @@
   }
 
   function shareText() {
-    const icon = (h) => { const p = toPar(h); return h.ob ? "🟥" : p === -3 ? "⛳" : p < 0 ? "🟩" : p === 0 ? "⬜" : p === 1 ? "🟨" : "🟧"; };
+    const icon = (h) => { const p = toPar(h); return h.ob ? "🟥" : h.strokes === 0 && !h.caddy ? "⛳" : p < 0 ? "🟩" : p === 0 ? "⬜" : p === 1 ? "🟨" : "🟧"; };
     const res = (h) => `${label(h)[0].replace("!", "")} (${fmtPar(toPar(h))})${h.caddy ? " 🏌️" : ""}`;
     const caddies = round.holes.filter((h) => h.caddy).length;
     if (round.tee.daily) {
@@ -719,10 +769,11 @@
   function challengeLink() {
     const t = round.tee;
     const spec = {
-      v: 1,
+      v: 2,
       t: { id: t.id, l: t.label, f: t.fams, from: t.from || 0, to: t.from && !t.present ? t.to : 0, hard: t.hard ? 1 : 0 },
-      h: round.holes.map((h) => [h.cat.id, h.par]),
+      h: round.holes.map((h) => [h.cat.id, h.par, h.hp || 4]),  // v1 links had no par: all par 4s
       s: round.holes.map((h) => h.strokes),
+      m: round.holes.map((h) => (h.ob ? null : h.miss)),  // spots off, for the par-3 near-miss rule
       c: round.holes.flatMap((h, i) => (h.caddy ? [i] : [])),  // holes where the sender asked the caddy
     };
     return `${location.origin}${location.pathname}?challenge=${enc64(spec)}`;
@@ -753,12 +804,12 @@
       $("challengeBtn").disabled = false;
     }
     const t = teeFromChallenge(c), cats = boardsFor(t);
-    const holes = c.h.map(([id, par]) => {
+    const holes = c.h.map(([id, par, hp = 4]) => {
       const cat = cats.find((x) => x.id === id);
       if (!cat) return null;
       // If the stats were refreshed since the link was made, snap to the nearest rank that still exists.
       const pin = cat.leaders.reduce((best, p) => (Math.abs(p.rank - par) < Math.abs(best.rank - par) ? p : best));
-      return { cat, par: pin.rank, guess: null, strokes: null, ob: false };
+      return { cat, hp, par: pin.rank, guess: null, strokes: null, ob: false };
     });
     if (holes.includes(null)) { $("challengeNote").textContent = "This challenge uses a leaderboard that's no longer in the game. Ask for a new link."; return; }
     currentTee = t;
@@ -920,7 +971,7 @@
     const raw = new URLSearchParams(location.search).get("challenge");
     if (raw) {
       const c = dec64(raw);
-      if (c && c.v === 1 && Array.isArray(c.h) && c.h.length && c.s.length === c.h.length) { pendingChallenge = c; showChallengeCard(); }
+      if (c && (c.v === 1 || c.v === 2) && Array.isArray(c.h) && c.h.length && c.s.length === c.h.length) { pendingChallenge = c; showChallengeCard(); }
     }
   } catch { /* a mangled link just opens the normal home screen */ }
   }

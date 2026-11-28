@@ -180,6 +180,8 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
 
 .hole-head { display: flex; justify-content: space-between; align-items: center; }
 .hole-num { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.hole-par { margin-top: 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.hole-par span:first-child { color: var(--ink); font-size: 16px; }
 .hole-num span:first-child { color: var(--ink); font-size: 22px; }
 .pin { text-align: center; background: var(--flag); color: #fff; border-radius: 12px; padding: 8px 16px; min-width: 92px; }
 .pin-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; opacity: .85; }
@@ -263,3 +265,4 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
   #guessForm { flex-direction: column; }
   .cat-name { font-size: 23px; }
 }
+.scorecard .par-row td { font-weight: 700; color: var(--muted); }

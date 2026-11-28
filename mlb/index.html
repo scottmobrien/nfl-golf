@@ -20,7 +20,7 @@
   <meta name="twitter:description" content="Name the player closest to a random spot on an all-time MLB leaderboard. Scored like golf, with a Daily 9 for everyone." />
   <meta name="twitter:image" content="https://sportsbutmakeitgolf.com/og.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9B%B3%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="../shared/game.css?v=20" />
+  <link rel="stylesheet" href="../shared/game.css?v=21" />
 </head>
 <body>
   <header class="topbar">
@@ -127,7 +127,10 @@
       </div>
       <div class="card">
         <div class="hole-head">
-          <div class="hole-num">Hole <span id="holeNum">1</span><small> / <span id="holeCount">9</span></small></div>
+          <div>
+            <div class="hole-num">Hole <span id="holeNum">1</span><small> / <span id="holeCount">9</span></small></div>
+            <div class="hole-par">Par <span id="holePar">4</span> · <span id="holeYds">400</span> yds</div>
+          </div>
           <div class="pin">
             <div class="pin-label">Pin</div>
             <div class="pin-rank">#<span id="parRank">1</span></div>
@@ -201,7 +204,7 @@
 
   <script>window.GOLF = {"name": "MLB Golf", "key": "mlbgolf", "dailySeed": "mlb-golf-daily:", "dailyEpoch": "2026-11-27", "uniformFirstDaily": false, "source": "the Lahman Baseball Database", "leaderboard": true, "lbSport": "mlb", "allFams": ["bat", "run", "pitch", "misc"], "tees": {"champ": ["bat", "run", "pitch"], "members": ["bat", "run", "pitch"]}, "membersFrom": 2000};</script>
   <script src="../shared/leaderboard-config.js?v=12"></script>
-  <script src="../shared/game.js?v=27"></script>
+  <script src="../shared/game.js?v=28"></script>
   <!-- Cloudflare Web Analytics: cookieless page-view counts (see docs/traffic-analytics.md) -->
   <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "491b1652aaf04bb68538096815c8875a"}'></script>
 </body>
