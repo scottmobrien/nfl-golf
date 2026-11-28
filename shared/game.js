@@ -258,12 +258,6 @@
     const c3 = Math.min(25, Math.ceil(L * 0.25)), c4 = Math.max(c3 + 1, Math.min(100, Math.floor(L * 0.6)));
     return hp === 3 ? [1, c3] : hp === 4 ? [c3 + 1, c4] : [c4 + 1, L];
   }
-  // Yardage is flavor: a deeper pin within the par's range plays longer.
-  function holeYards(h) {
-    const [lo, hi] = parBand(h.cat.leaders, h.hp), f = hi > lo ? (h.par - lo) / (hi - lo) : 0.5;
-    const [y0, y1] = { 3: [125, 225], 4: [340, 470], 5: [500, 610] }[h.hp];
-    return Math.round((y0 + f * (y1 - y0)) / 5) * 5;
-  }
   function parLayout(n, rnd) {
     const k = Math.round((n * 2) / 9);
     return shuffle([...Array(k).fill(3), ...Array(n - 2 * k).fill(4), ...Array(k).fill(5)], rnd);
@@ -419,13 +413,14 @@
     const h = round.holes[round.idx];
     $("holeNum").textContent = round.idx + 1;
     $("holePar").textContent = h.hp || 4;
-    $("holeYds").textContent = holeYards(h);
     $("parRank").textContent = h.par;
     // Default: "Pin #53 73.5 Sk of 245". Hard mode hides the stat; the list size always shows.
     $("pinStat").textContent = round.tee.hard ? "" : h.cat.leaders.find((p) => p.rank === h.par).disp;
     // The hole badge takes the tee's color (the Daily 9 plays the Members Tees).
     const teeId = round.tee.id === "daily" ? "members" : round.tee.id;
-    $("holeBadge").className = `hole-badge hb-${["tips", "champ", "members", "red"].includes(teeId) ? teeId : "members"}`;
+    const hb = `hole-badge hb-${["tips", "champ", "members", "red"].includes(teeId) ? teeId : "members"}`;
+    $("holeBadge").className = hb;
+    $("parBadge").className = hb;
     $("holeBadge").title = `${teeText(round.tee)}`;
     $("catName").textContent = h.cat.name;
     const note = h.cat.note ?? h.cat.n ?? "";

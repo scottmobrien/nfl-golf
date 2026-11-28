@@ -186,6 +186,7 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
 
 .hole-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .head-main { min-width: 0; }
+.badges { display: flex; gap: 8px; flex: none; }
 .hole-badge { flex: none; text-align: center; border-radius: 12px; padding: 7px 12px; min-width: 70px; border: 2px solid transparent; }
 .hb-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; opacity: .8; }
 .hb-num { font-size: 26px; font-weight: 900; line-height: 1.05; font-variant-numeric: tabular-nums; }
@@ -199,7 +200,13 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
 .pin-rank { font-size: 30px; font-weight: 900; line-height: 1; color: var(--flag); }
 .pin-stat { font-size: 18px; font-weight: 800; color: var(--ink); }
 .pin-stat:empty { display: none; }
+.pin-who { font-size: 15px; color: var(--muted); }
 .pin-of { font-size: 15px; color: var(--muted); }
+.pin-line { margin-bottom: 12px; }
+@media (max-width: 430px) {
+  .hole-badge { min-width: 56px; padding: 6px 8px; } .hb-num { font-size: 22px; }
+  .pin-line { gap: 0 5px; } .pin-rank { font-size: 24px; } .pin-stat { font-size: 15px; } .pin-who, .pin-of { font-size: 13px; } .pin-label { font-size: 11px; letter-spacing: 1px; }
+}
 .hole-num { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 .hole-par { margin: 4px 0 12px; font-size: 13px; font-weight: 700; color: var(--muted); }
 .hole-par span:first-child { color: var(--ink); font-size: 16px; }
