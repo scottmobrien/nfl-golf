@@ -20,7 +20,7 @@
   <meta name="twitter:description" content="Name the player closest to a random spot on an all-time NBA leaderboard. Scored like golf, with a Daily 9 for everyone." />
   <meta name="twitter:image" content="https://sportsbutmakeitgolf.com/og.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9B%B3%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="../shared/game.css?v=24" />
+  <link rel="stylesheet" href="../shared/game.css?v=25" />
 </head>
 <body>
   <header class="topbar">
@@ -143,19 +143,19 @@
       </div>
       <div class="card">
         <div class="hole-head">
-          <div>
-            <div class="hole-num">Hole <span id="holeNum">1</span><small> / <span id="holeCount">9</span></small></div>
-            <div class="hole-par">Par <span id="holePar">4</span> · <span id="holeYds">400</span> yds</div>
+          <div class="head-main">
+            <h2 id="catName" class="cat-name">Category</h2>
+            <p id="catNote" class="cat-note hidden"></p>
           </div>
-          <div class="pin">
-            <div class="pin-label">Pin</div>
-            <div class="pin-rank">#<span id="parRank">1</span></div>
+          <div id="holeBadge" class="hole-badge hb-members" title="Hole">
+            <div class="hb-label">Hole</div>
+            <div class="hb-num"><span id="holeNum">1</span><small>/<span id="holeCount">9</span></small></div>
           </div>
         </div>
-        <div id="holeTee" class="hole-tee"></div>
-        <h2 id="catName" class="cat-name">Category</h2>
-        <p id="catNote" class="cat-note hidden"></p>
-        <p class="cat-sub"><span id="pinStat"></span><span id="listSize">50</span> players</p>
+        <div class="pin-line">
+          <span class="pin-label">Pin</span><span class="pin-rank">#<span id="parRank">1</span></span><span id="pinStat" class="pin-stat"></span><span class="pin-of">of <span id="listSize">50</span> players</span>
+        </div>
+        <div class="hole-par">Par <span id="holePar">4</span> · <span id="holeYds">400</span> yds</div>
         <div id="holeViz" class="hole-viz"></div>
 
         <div id="caddyBox" class="caddy-box hidden" aria-live="polite"></div>
@@ -223,7 +223,7 @@
 
   <script>window.GOLF = {"name": "NBA Golf", "key": "nbagolf", "dailySeed": "nba-golf-daily:", "dailyEpoch": "2026-11-27", "uniformFirstDaily": false, "source": "Basketball-Reference", "leaderboard": true, "lbSport": "nba", "allFams": ["score", "reb", "play", "def", "gen", "adv"], "tees": {"champ": ["score", "reb", "play", "def", "gen"], "members": ["score", "reb", "play", "def", "gen"]}, "membersFrom": 2000};</script>
   <script src="../shared/leaderboard-config.js?v=12"></script>
-  <script src="../shared/game.js?v=31"></script>
+  <script src="../shared/game.js?v=32"></script>
   <!-- Cloudflare Web Analytics: cookieless page-view counts (see docs/traffic-analytics.md) -->
   <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "491b1652aaf04bb68538096815c8875a"}'></script>
 </body>

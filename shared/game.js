@@ -371,7 +371,6 @@
     POOL = POOL_ALL;
     // The Daily 9 #1 launched with uniform pins; keep it so saved rounds replay the same course.
     round = buildRound(9, boardsFor(t), seeded(SPORT.dailySeed + date), SPORT.uniformFirstDaily && t.num <= 1, date >= PARS_FROM);
-    $("holeTee").textContent = teeText(t);
     $("reteeBtn").classList.add("hidden"); // one Daily 9 round per day
     $("holeCount").textContent = 9;
     // Replay saved swings so a refresh can't re-roll a hole.
@@ -410,7 +409,6 @@
   }
 
   function beginRound(t, n) {
-    $("holeTee").textContent = teeText(t);
     $("reteeBtn").classList.toggle("hidden", !!t.daily); // one Daily 9 round per day
     $("holeCount").textContent = n;
     renderHole();
@@ -423,8 +421,12 @@
     $("holePar").textContent = h.hp || 4;
     $("holeYds").textContent = holeYards(h);
     $("parRank").textContent = h.par;
-    // Default: show the pin player's stat, e.g. "48 TD · 250 players". Hard mode hides it.
-    $("pinStat").textContent = round.tee.hard ? "" : `${h.cat.leaders.find((p) => p.rank === h.par).disp} · `;
+    // Default: "Pin #53 73.5 Sk of 245". Hard mode hides the stat; the list size always shows.
+    $("pinStat").textContent = round.tee.hard ? "" : h.cat.leaders.find((p) => p.rank === h.par).disp;
+    // The hole badge takes the tee's color (the Daily 9 plays the Members Tees).
+    const teeId = round.tee.id === "daily" ? "members" : round.tee.id;
+    $("holeBadge").className = `hole-badge hb-${["tips", "champ", "members", "red"].includes(teeId) ? teeId : "members"}`;
+    $("holeBadge").title = `${teeText(round.tee)}`;
     $("catName").textContent = h.cat.name;
     const note = h.cat.note ?? h.cat.n ?? "";
     $("catNote").textContent = note;
