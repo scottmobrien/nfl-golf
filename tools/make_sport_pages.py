@@ -75,7 +75,7 @@ for sport, c in SPORTS.items():
     golf = {
         "name": f"{short} Golf", "key": f"{sport}golf", "dailySeed": f"{sport}-golf-daily:", "dailyEpoch": LAUNCH,
         "uniformFirstDaily": False, "source": c["source"],
-        "leaderboard": False,  # needs a sport column on daily_scores first (see docs/decisions.md)
+        "leaderboard": True, "lbSport": sport,
         "allFams": [v for v, _, _ in c["fams"]], "tees": {"champ": c["champ"], "members": c["members"]},
         "membersFrom": 2000,
     }

@@ -10,7 +10,7 @@
     uniformFirstDaily: true,        // NFL's #1 launched before pins were weighted
     source: "Pro Football Reference",
     leaderboard: true,
-    lbSport: null,                  // set once daily_scores has a sport column; scores are then kept per sport
+    lbSport: "nfl",                 // daily_scores.sport: each sport keeps its own leaderboard
     allFams: ["off", "def", "kick", "punt", "ret", "gen"],
     tees: {
       champ: ["off", "def", "gen"],
