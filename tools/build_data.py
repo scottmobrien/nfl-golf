@@ -287,6 +287,42 @@ def cell(x):
     return 0 if v is None else (int(v) if v == int(v) else v)
 
 
+# Team Tees: today's 32 franchises. PFR codes repeat across eras ("STL" = Cardinals 1960-87, Rams 1995-2015;
+# "BAL" = Colts to 1983, Ravens from 1996; "HOU" = Oilers to 1996, Texans from 2002), so the year decides.
+# A season split between teams only exists combined ("2TM"), so it counts for neither team.
+TEAM_NAMES = {
+    "crd": "Arizona Cardinals", "atl": "Atlanta Falcons", "rav": "Baltimore Ravens", "buf": "Buffalo Bills",
+    "car": "Carolina Panthers", "chi": "Chicago Bears", "cin": "Cincinnati Bengals", "cle": "Cleveland Browns",
+    "dal": "Dallas Cowboys", "den": "Denver Broncos", "det": "Detroit Lions", "gnb": "Green Bay Packers",
+    "htx": "Houston Texans", "clt": "Indianapolis Colts", "jax": "Jacksonville Jaguars", "kan": "Kansas City Chiefs",
+    "rai": "Las Vegas Raiders", "sdg": "Los Angeles Chargers", "ram": "Los Angeles Rams", "mia": "Miami Dolphins",
+    "min": "Minnesota Vikings", "nwe": "New England Patriots", "nor": "New Orleans Saints", "nyg": "New York Giants",
+    "nyj": "New York Jets", "phi": "Philadelphia Eagles", "pit": "Pittsburgh Steelers", "sfo": "San Francisco 49ers",
+    "sea": "Seattle Seahawks", "tam": "Tampa Bay Buccaneers", "oti": "Tennessee Titans", "was": "Washington Commanders",
+}
+
+
+def franchise(code, y):
+    simple = {"ARI": "crd", "PHO": "crd", "CRD": "crd", "ATL": "atl", "CAR": "car", "CHI": "chi", "DEN": "den",
+              "GNB": "gnb", "TEN": "oti", "IND": "clt", "JAX": "jax", "LVR": "rai", "OAK": "rai", "RAI": "rai",
+              "LAC": "sdg", "SDG": "sdg", "LAR": "ram", "RAM": "ram", "NWE": "nwe", "NOR": "nor", "NYG": "nyg",
+              "NYJ": "nyj", "NYT": "nyj", "SFO": "sfo", "SEA": "sea", "TAM": "tam", "WAS": "was", "PRT": "det"}
+    if code in simple:
+        return simple[code]
+    rules = {
+        "BUF": "buf" if y >= 1960 else None, "CIN": "cin" if y >= 1968 else None, "CLE": "cle" if y >= 1946 else None,
+        "DAL": "dal" if y >= 1960 else None, "DET": "det" if y >= 1934 else None, "MIA": "mia" if y >= 1966 else None,
+        "MIN": "min" if y >= 1961 else None, "PHI": "phi" if y >= 1933 else None, "PIT": "pit" if y >= 1933 else None,
+        "KAN": "kan" if y >= 1963 else None, "DTX": "kan" if 1960 <= y <= 1962 else None,
+        "HOU": "htx" if y >= 2002 else "oti" if y >= 1960 else None,
+        "BAL": "clt" if 1953 <= y <= 1983 else "rav" if y >= 1996 else None,
+        "STL": "crd" if 1960 <= y <= 1987 else "ram" if 1995 <= y <= 2015 else None,
+        "BOS": "was" if 1932 <= y <= 1936 else "nwe" if 1960 <= y <= 1970 else None,
+    }
+    return rules.get(code)
+
+
+season_team = {}  # (year, pid) -> franchise
 season_rows = {}  # year -> page -> {pid: [values]}
 season_names, season_years = {}, {}
 season_pos = collections.defaultdict(collections.Counter)  # pid -> position counts
@@ -297,9 +333,12 @@ for yr, pages in seasons_raw.items():
         gi = next((idx[c] for c in G if c in idx), None)
         gsi = next((idx[c] for c in GS if c in idx), None)
         pi = idx.get("pos")
+        tmi = idx.get("team_name_abbr")
         rows = {}
         for r in t["rows"]:
             pid, cells = r[0].lower(), r[2:]
+            if tmi is not None and cells[tmi]:
+                season_team.setdefault((yr, pid), franchise(cells[tmi], yr))
             season_names.setdefault(pid, r[1])
             if pi is not None and cells[pi]:
                 season_pos[pid][norm_pos(cells[pi])] += 1
@@ -371,10 +410,13 @@ if seasons_raw:
     # seasons.json: {years: [first, last], extraPlayers, boards: [specs], seasons: {year: {page: {c: [stats], r: [[player index, ...values]]}}}}
     out = {}
     for yr, pages in season_rows.items():
-        out[yr] = {pg: {"c": needed[pg], "r": [[index[names[pid]], *v] for pid, v in rows.items()]}
+        team_ix = {tid: i for i, tid in enumerate(TEAM_NAMES)}
+        out[yr] = {pg: {"c": needed[pg], "r": [[index[names[pid]], *v] for pid, v in rows.items()],
+                        "t": [team_ix.get(season_team.get((yr, pid)), -1) for pid in rows]}
                    for pg, rows in pages.items() if pg in needed and rows}
     with open(os.path.join(ROOT, "nfl", "seasons.json"), "w") as f:
-        json.dump({"years": [FIRST_SEASON, LAST_SEASON], "extraPlayers": extra, "boards": specs, "seasons": out},
+        json.dump({"years": [FIRST_SEASON, LAST_SEASON], "extraPlayers": extra, "boards": specs, "seasons": out,
+                   "teams": [{"id": tid, "name": n} for tid, n in TEAM_NAMES.items()]},
                   f, ensure_ascii=False, separators=(",", ":"))
     print(f"seasons.json: {len(out)} seasons, {len(specs)} span boards, {len(extra)} season-only players")
     print("Span boards missing columns:", dropped)

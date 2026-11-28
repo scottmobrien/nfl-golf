@@ -3,8 +3,9 @@
 Usage: python3 tools/fetch_mlb_season.py 2026
 
 Writes data-src/mlb/bref_<year>.json with stats renamed to Lahman's column names, keyed by Baseball-Reference
-player id (Lahman's People.csv maps bbrefID -> playerID). Two requests, 3.6 s apart. A traded player's
-combined row comes first, so only the first row per player is kept. Delete the file once Lahman adds the season.
+player id (Lahman's People.csv maps bbrefID -> playerID). Two requests, 3.6 s apart. A traded player gets one
+row per team (the combined "2TM" row is skipped), each with its team, for Team Tees. Delete the file once Lahman
+adds the season.
 """
 import html, json, os, re, sys, time, urllib.request
 
@@ -30,10 +31,13 @@ def table(year, kind, table_id, mapping):
     out, seen = [], set()
     for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", re.search(r"<tbody>(.*?)</tbody>", t, re.S).group(1), re.S):
         pid = re.search(r'data-append-csv="([^"]+)"', tr)
-        if not pid or pid.group(1) in seen:
+        if not pid:
             continue
-        seen.add(pid.group(1))
         cells = {k: html.unescape(re.sub(r"<[^>]+>", "", v)).strip() for k, v in re.findall(r'data-stat="([a-z0-9_]+)"[^>]*>(.*?)</t[dh]>', tr, re.S)}
+        team = cells.get("team_name_abbr") or cells.get("team_ID") or ""
+        if re.fullmatch(r"\d+TM|TOT", team) or (pid.group(1), team) in seen:
+            continue
+        seen.add((pid.group(1), team))
         stats = {lah: num(cells.get(br)) for br, lah in mapping.items()}
         if "IP" in stats:  # "180.1" means 180 1/3 innings
             whole, _, thirds = cells.get("p_ip", "0").partition(".")
@@ -42,7 +46,7 @@ def table(year, kind, table_id, mapping):
         code = re.split(r"[^0-9A-Z]", (cells.get("pos") or "").lstrip("*/"))[0]
         pos = {"1": "P", "2": "C", "3": "1B", "4": "2B", "5": "3B", "6": "SS", "7": "LF", "8": "CF", "9": "RF",
                "D": "DH"}.get(code[:1], "") if kind == "batting" else "P"
-        out.append({"bbref": pid.group(1), "name": cells.get("name_display", "").rstrip("*#+ "), "pos": pos, "stats": stats})
+        out.append({"bbref": pid.group(1), "name": cells.get("name_display", "").rstrip("*#+ "), "pos": pos, "team": team, "stats": stats})
     return out
 
 

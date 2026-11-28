@@ -5,8 +5,12 @@ player's name and position counts. From that we write, into <sport>/:
 
   data.json     {asOf, firstSeason, lastSeason, players, categories: [{id, name, f, l: [[rank, idx, disp]], n}]}
                 — the all-time boards (The Tips / Championship), built from full career totals.
-  seasons.json  {years, extraPlayers, boards: [specs], seasons: {year: {page: {c: [stats], r: [[idx, ...]]}}}}
-                — what the page sums for any span (Members Tees, Red Tees, the Daily 9).
+  seasons.json  {years, extraPlayers, boards: [specs], teams: [{id, name}],
+                 seasons: {year: {page: {c: [stats], r: [[idx, ...]], t: [team index or -1]}}}}
+                — what the page sums for any span (Members Tees, Red Tees, Team Tees, the Daily 9).
+
+Team rows: an adapter may key a season's rows "pid|team" with st["_pid"] = pid and st["_t"] = franchise id,
+so a traded player has one row per franchise. Totals add the rows up; Team Tees keep one franchise's rows.
 
 The all-time boards here use the same rules as the in-browser span boards in shared/game.js (rangeBoard):
 rate stats need a minimum volume (qMin per season, x10 seasons), lists stop at rank 250, a giant tie at
@@ -33,6 +37,8 @@ def spec_keys(sp):
     ks = []
     for f in ("sum", "num", "den", "q"):
         ks += sp.get(f, [])
+    for f in ("num", "den"):
+        ks += sp.get("role", {}).get(f, [])
     for v in sp.get("k", {}).values():
         ks += v
     return ks
@@ -51,8 +57,19 @@ def fmt(spec, v):
     return s + "%" if spec.get("pct") else f"{s} {spec['unit']}"
 
 
+def role_ok(spec, o):
+    """Role filter, e.g. starters = games started / games >= 0.5, relievers <= 0.2 (same rule as rangeBoard)."""
+    r = spec.get("role")
+    if not r:
+        return True
+    den = add(o, r["den"])
+    share = add(o, r["num"]) / den if den else 0
+    return not (("min" in r and share < r["min"]) or ("max" in r and share > r["max"]))
+
+
 def board(spec, tot, years, min_rows):
     """Port of rangeBoard() in shared/game.js. tot: {player idx: {"page.stat": total}}."""
+    tot = {pi: o for pi, o in tot.items() if role_ok(spec, o)}
     q_min = 1
     if spec.get("q") and not spec.get("qFlat"):
         full = spec["qMin"] * min(years, 10)
@@ -101,8 +118,10 @@ def board(spec, tot, years, min_rows):
     return {"ranked": ranked, "note": note}, None
 
 
-def build(sport, seasons, people, specs, source_label):
-    """seasons: {year: {page: {pid: {stat: number}}}}; people: {pid: {"name", "pos": Counter, "years": set}}."""
+def build(sport, seasons, people, specs, source_label, teams=None):
+    """seasons: {year: {page: {key: {stat: number}}}} (key = pid, or "pid|team" with "_pid"/"_t" in the stats);
+    people: {pid: {"name", "pos": Counter, "years": set}}; teams: [(franchise id, display name)] for Team Tees."""
+    pid_of = lambda key, st: st.get("_pid", key)
     out_dir = os.path.join(ROOT, sport)
     os.makedirs(out_dir, exist_ok=True)
     years = sorted(seasons)
@@ -113,7 +132,7 @@ def build(sport, seasons, people, specs, source_label):
     for yr in seasons.values():
         for page, rows in yr.items():
             for st in rows.values():
-                have[page].update(st)
+                have[page].update(k for k in st if not k.startswith("_"))
     specs = [sp for sp in specs if all(k.split(".")[1] in have[k.split(".")[0]] for k in spec_keys(sp))]
     needed = collections.defaultdict(list)
     for sp in specs:
@@ -126,7 +145,8 @@ def build(sport, seasons, people, specs, source_label):
     career = collections.defaultdict(lambda: collections.defaultdict(float))
     for yr, pages in seasons.items():
         for page, rows in pages.items():
-            for pid, st in rows.items():
+            for key, st in rows.items():
+                pid = pid_of(key, st)
                 for s in needed.get(page, []):
                     if st.get(s):
                         career[pid][f"{page}.{s}"] += st[s]
@@ -134,6 +154,8 @@ def build(sport, seasons, people, specs, source_label):
     # All-time boards on player ids first; display names are resolved after.
     all_time, skipped = [], []
     for sp in specs:
+        if sp.get("retired"):  # kept in seasons.json only, so older Daily 9s replay the same course
+            continue
         b, why = board(sp, career, len(years), MIN_ROWS_ALL_TIME)
         if b:
             all_time.append((sp, b))
@@ -187,21 +209,23 @@ def build(sport, seasons, people, specs, source_label):
             cat["n"] = b["note"]
         cats.append(cat)
 
-    # Seasons for spans: only needed stats, only rows with something in them.
+    # Seasons for spans: only needed stats, only rows with something in them; t[] = franchise per row.
+    team_ix = {tid: i for i, (tid, _) in enumerate(teams or [])}
     out = {}
     for yr in years:
         pages = {}
         for page, rows in seasons[yr].items():
             if page not in needed:
                 continue
-            r = []
-            for pid, st in rows.items():
+            r, t = [], []
+            for key, st in rows.items():
                 vals = [st.get(s, 0) for s in needed[page]]
                 vals = [int(v) if float(v).is_integer() else round(v, 3) for v in vals]
                 if any(vals):
-                    r.append([index[names[pid]], *vals])
+                    r.append([index[names[pid_of(key, st)]], *vals])
+                    t.append(team_ix.get(st.get("_t"), -1))
             if r:
-                pages[page] = {"c": needed[page], "r": r}
+                pages[page] = {"c": needed[page], "r": r, **({"t": t} if teams else {})}
         out[str(yr)] = pages
 
     as_of = __import__("datetime").date.today().isoformat()
@@ -209,7 +233,8 @@ def build(sport, seasons, people, specs, source_label):
         json.dump({"asOf": as_of, "firstSeason": first, "lastSeason": last, "players": players,
                    "categories": cats}, f, ensure_ascii=False, separators=(",", ":"))
     with open(os.path.join(out_dir, "seasons.json"), "w") as f:
-        json.dump({"years": [first, last], "extraPlayers": extra, "boards": specs, "seasons": out},
+        json.dump({"years": [first, last], "extraPlayers": extra, "boards": specs, "seasons": out,
+                   **({"teams": [{"id": i, "name": n} for i, n in teams]} if teams else {})},
                   f, ensure_ascii=False, separators=(",", ":"))
     print(f"{sport}: {len(cats)} all-time boards, {len(specs)} span boards, {len(players)} + {len(extra)} players, "
           f"seasons {first}-{last}; source {source_label}")

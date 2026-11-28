@@ -10,7 +10,34 @@ import collections, json, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from golf_build import ROOT, build
 
-raw = json.load(open(os.path.join(ROOT, "data-src", "nba", "seasons.json")))
+# Per-team rows (tools/fetch_nba.py --teams) when we have them, so Team Tees can split a traded player's season.
+TEAMS_SRC = os.path.join(ROOT, "data-src", "nba", "seasons_teams.json")
+raw = json.load(open(TEAMS_SRC if os.path.exists(TEAMS_SRC) else os.path.join(ROOT, "data-src", "nba", "seasons.json")))
+
+# Team Tees: today's 30 franchises, with old codes folded in (Sonics -> Thunder, Bullets -> Wizards...).
+TEAM_NAMES = {
+    "ATL": "Atlanta Hawks", "BOS": "Boston Celtics", "BRK": "Brooklyn Nets", "CHO": "Charlotte Hornets",
+    "CHI": "Chicago Bulls", "CLE": "Cleveland Cavaliers", "DAL": "Dallas Mavericks", "DEN": "Denver Nuggets",
+    "DET": "Detroit Pistons", "GSW": "Golden State Warriors", "HOU": "Houston Rockets", "IND": "Indiana Pacers",
+    "LAC": "Los Angeles Clippers", "LAL": "Los Angeles Lakers", "MEM": "Memphis Grizzlies", "MIA": "Miami Heat",
+    "MIL": "Milwaukee Bucks", "MIN": "Minnesota Timberwolves", "NOP": "New Orleans Pelicans", "NYK": "New York Knicks",
+    "OKC": "Oklahoma City Thunder", "ORL": "Orlando Magic", "PHI": "Philadelphia 76ers", "PHO": "Phoenix Suns",
+    "POR": "Portland Trail Blazers", "SAC": "Sacramento Kings", "SAS": "San Antonio Spurs", "TOR": "Toronto Raptors",
+    "UTA": "Utah Jazz", "WAS": "Washington Wizards",
+}
+OLD_CODES = {"MLH": "ATL", "TRI": "ATL", "NJN": "BRK", "NYN": "BRK", "CHA": "CHO", "CHH": "CHO", "FTW": "DET",
+             "SFW": "GSW", "PHW": "GSW", "SDR": "HOU", "SDC": "LAC", "BUF": "LAC", "MNL": "LAL", "VAN": "MEM",
+             "NOH": "NOP", "NOK": "NOP", "SEA": "OKC", "SYR": "PHI", "KCK": "SAC", "KCO": "SAC", "CIN": "SAC",
+             "ROC": "SAC", "NOJ": "UTA", "WSB": "WAS", "CAP": "WAS", "CHZ": "WAS", "CHP": "WAS"}
+
+
+def franchise(code, year):
+    if code == "BAL":  # the 1964-73 Bullets are today's Wizards; the 1948-55 Bullets (BLB) folded
+        return "WAS" if year >= 1964 else None
+    if code == "STL":  # St. Louis Hawks
+        return "ATL"
+    c = OLD_CODES.get(code, code)
+    return c if c in TEAM_NAMES else None
 FIELDS = {
     "totals": ["games", "games_started", "mp", "fg", "fga", "fg3", "fg3a", "ft", "fta", "orb", "drb", "trb",
                "ast", "stl", "blk", "tov", "pf", "pts", "tpl_dbl"],
@@ -29,9 +56,11 @@ for y, pages in raw.items():
     seasons[yr] = {}
     for page, t in pages.items():
         idx = {c: i for i, c in enumerate(t["cols"])}
+        ti = idx.get("team_name_abbr")
         out = {}
         for r in t["rows"]:
             pid, name, cells = r[0], r[1], r[2:]
+            team = cells[ti] if ti is not None else ""
             p = people.setdefault(pid, {"name": name, "pos": collections.Counter(), "years": set()})
             p["years"].add(yr)
             if page == "totals" and "pos" in idx and cells[idx["pos"]]:
@@ -45,7 +74,8 @@ for y, pages in raw.items():
             if page == "advanced":  # minute-weighted, so career PER/BPM = sum(stat x minutes) / sum(minutes)
                 st["per_x_mp"] = st.get("per", 0) * st.get("mp", 0)
                 st["bpm_x_mp"] = st.get("bpm", 0) * st.get("mp", 0)
-            out[pid] = st
+            st["_pid"], st["_t"] = pid, franchise(team, yr)
+            out[f"{pid}|{team}"] = st
         seasons[yr][page] = out
 
 T = lambda f: f"totals.{f}"
@@ -86,7 +116,7 @@ SPECS = [
     dict(id="pf", name="Personal Fouls", f="gen", unit="PF", sum=[T("pf")]),
 ]
 
-res = build("nba", seasons, people, SPECS, "Basketball-Reference")
+res = build("nba", seasons, people, SPECS, "Basketball-Reference", teams=sorted(TEAM_NAMES.items(), key=lambda kv: kv[1]))
 career = res["career"]
 for who, pid, key, want in [("Kareem Abdul-Jabbar", "/players/a/abdulka01.html", "totals.pts", 38387),
                             ("Wilt Chamberlain", "/players/c/chambwi01.html", "totals.trb", 23924),

@@ -18,6 +18,30 @@ FIELDS = {
     "goalies": ["gamesPlayed", "gamesStarted", "wins", "losses", "ties", "otLosses", "shutouts", "saves",
                 "shotsAgainst", "goalsAgainst", "timeOnIce"],
 }
+# Team Tees: today's franchises, with old codes folded in (Nordiques -> Avalanche, Whalers -> Hurricanes, North
+# Stars -> Stars, Thrashers -> Jets). A season split between teams comes combined ("CHI,EDM"), so it counts for
+# neither team. Utah is its own franchise (the Coyotes' history stays with the inactive Coyotes).
+TEAM_NAMES = {
+    "ANA": "Anaheim Ducks", "BOS": "Boston Bruins", "BUF": "Buffalo Sabres", "CGY": "Calgary Flames",
+    "CAR": "Carolina Hurricanes", "CHI": "Chicago Blackhawks", "COL": "Colorado Avalanche", "CBJ": "Columbus Blue Jackets",
+    "DAL": "Dallas Stars", "DET": "Detroit Red Wings", "EDM": "Edmonton Oilers", "FLA": "Florida Panthers",
+    "LAK": "Los Angeles Kings", "MIN": "Minnesota Wild", "MTL": "Montreal Canadiens", "NSH": "Nashville Predators",
+    "NJD": "New Jersey Devils", "NYI": "New York Islanders", "NYR": "New York Rangers", "OTT": "Ottawa Senators",
+    "PHI": "Philadelphia Flyers", "PIT": "Pittsburgh Penguins", "SJS": "San Jose Sharks", "SEA": "Seattle Kraken",
+    "STL": "St. Louis Blues", "TBL": "Tampa Bay Lightning", "TOR": "Toronto Maple Leafs", "UTA": "Utah Mammoth",
+    "VAN": "Vancouver Canucks", "VGK": "Vegas Golden Knights", "WSH": "Washington Capitals", "WPG": "Winnipeg Jets",
+}
+OLD_CODES = {"AFM": "CGY", "HFD": "CAR", "QUE": "COL", "MNS": "DAL", "DCG": "DET", "DFL": "DET", "KCS": "NJD",
+             "CLR": "NJD", "TSP": "TOR", "TAN": "TOR", "ATL": "WPG"}
+
+
+def franchise(codes):
+    if not codes or "," in codes:
+        return None
+    c = OLD_CODES.get(codes, codes)
+    return c if c in TEAM_NAMES else None
+
+
 seasons, people = {}, {}
 for sid, pages in raw.items():
     yr = int(sid[4:])
@@ -32,6 +56,7 @@ for sid, pages in raw.items():
             if page != "realtime":
                 p["pos"]["G" if page == "goalies" else (r.get("positionCode") or "")] += 1
             st = {f: float(r.get(f) or 0) for f in FIELDS[page]}
+            st["_t"] = franchise(r.get("teamAbbrevs"))
             if page == "skaters":  # shots were only tracked from 1959-60: shooting % counts goals from those seasons
                 st["goalsWithShots"] = st["goals"] if st["shots"] else 0.0
             out[pid] = st
@@ -56,7 +81,7 @@ SPECS = [
     dict(id="ppg", name="Points per Game", f="score", unit="P/GP", dec=2, num=[S("points")], den=[S("gamesPlayed")], **GP_Q),
     dict(id="gpg", name="Goals per Game", f="score", unit="G/GP", dec=2, num=[S("goals")], den=[S("gamesPlayed")], **GP_Q),
     dict(id="shooting_pct", name="Shooting Percentage", f="score", pct=True, dec=1, mult=100,
-         num=[S("goalsWithShots")], den=[S("shots")], **SHOT_Q, note="Shots counted since 1959-60"),
+         num=[S("goalsWithShots")], den=[S("shots")], **SHOT_Q, note="Shots counted since 1959-60", noteBefore=1960),
     dict(id="games", name="Games Played (Skater)", f="skate", unit="GP", sum=[S("gamesPlayed")]),
     dict(id="plus_minus", since="1959-60", name="Plus/Minus", f="skate", unit="+/-", sum=[S("plusMinus")],
          note="Only players with a positive career total are ranked"),
@@ -75,7 +100,7 @@ SPECS = [
          num=[G("saves")], den=[G("shotsAgainst")], **GOALIE_Q),
 ]
 
-res = build("nhl", seasons, people, SPECS, "NHL stats API")
+res = build("nhl", seasons, people, SPECS, "NHL stats API", teams=sorted(TEAM_NAMES.items(), key=lambda kv: kv[1]))
 career = res["career"]
 for who, pid, key, want in [("Wayne Gretzky", "8447400", "skaters.points", 2857), ("Gordie Howe", "8448000", "skaters.goals", 801),
                             ("Martin Brodeur", "8455710", "goalies.wins", 691), ("Martin Brodeur", "8455710", "goalies.shutouts", 125)]:

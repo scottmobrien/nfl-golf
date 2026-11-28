@@ -20,7 +20,7 @@
   <meta name="twitter:description" content="Name the player closest to a random spot on an all-time NBA leaderboard. Scored like golf, with a Daily 9 for everyone." />
   <meta name="twitter:image" content="https://sportsbutmakeitgolf.com/og.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9B%B3%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="../shared/game.css?v=26" />
+  <link rel="stylesheet" href="../shared/game.css?v=28" />
 </head>
 <body>
   <header class="topbar">
@@ -78,6 +78,8 @@
             <ul>
               <li>Name the exact player (or one of the players tied at that rank) and you’re in the hole. Do it off the tee and it’s a hole in one, on any par!</li>
               <li>After your Tee Shot (and your Second Shot on a par 5), you’ll see the players ranked near your guess. Use them to line up your next shot.</li>
+              <li>Don’t like the category? Before your Tee Shot, take a Mulligan: +1 stroke and a new category for that hole (not in the Daily 9).</li>
+              <li>Happy with where your ball landed? Tap “Putt from here” to putt out from that spot. The shots you skip still count, so it’s for keeping a good lie, not saving strokes.</li>
               <li>If your last shot misses, you putt out. The closer your last shot is to the pin, the fewer putts you need. Remember that the green is based on the size of the list: on a 250-player list you can be further away from the pin and still make par than you could on a 50-player list.</li>
               <li>Guess a player who isn’t on the list and you’re out of bounds: +1 penalty stroke, or +5 if it’s your last shot.</li>
             </ul>
@@ -104,10 +106,17 @@
             <span class="tee-name"><i class="tee-dot"></i>Red Tees</span>
             <span class="tee-copy">Choose your own category options and time periods. Just delete a few beers and have fun out on the course, you're not maintaining a handicap anyway.</span>
           </label>
+          <label class="tee tee-team"><input type="radio" name="tee" value="team" />
+            <span class="tee-name"><i class="tee-dot"></i>Team Tees</span>
+            <span class="tee-copy">Pick your team: every hole is that franchise's leaderboard. Narrow the years if you like.</span>
+          </label>
         </div>
 
         <fieldset id="redOptions" class="red-options hidden">
           <legend>Categories</legend>
+          <div class="team-row hidden" id="teamRow">
+            <label>Team <select id="teamPick"></select></label>
+          </div>
           <div class="fams">
             <label><input type="checkbox" name="fam" value="score" checked /> Scoring</label>
             <label><input type="checkbox" name="fam" value="reb" checked /> Rebounding</label>
@@ -119,6 +128,7 @@
             <label>From <select id="yearFrom"></select></label>
             <label>To <select id="yearTo"></select></label>
           </div>
+          <div class="era-chips" id="eraChips" aria-label="Quick year ranges"></div>
           <p class="fine">Seasons are labeled by the year they end (2024 = the 2023-24 season).</p>
           <p id="redNote" class="fine red-note"></p>
         </fieldset>
@@ -144,6 +154,7 @@
         <div class="hole-head">
           <div class="head-main">
             <h2 id="catName" class="cat-name">Category</h2>
+            <span id="mullTag" class="mull-tag hidden"></span>
             <p id="catNote" class="cat-note hidden"></p>
           </div>
           <div class="badges">
@@ -172,7 +183,11 @@
           </div>
           <button id="guessBtn" type="submit" class="primary">Swing</button>
         </form>
-        <button id="caddyBtn" type="button" class="caddy-btn">🏌️ Ask the Caddy <span>+1</span></button>
+        <button id="puttBtn" type="button" class="putt-btn hidden">⛳ Putt from here <span>the shots you skip still count</span></button>
+        <div class="extra-btns">
+          <button id="mullBtn" type="button" class="caddy-btn mull-btn hidden">🔄 Mulligan <span>+1</span></button>
+          <button id="caddyBtn" type="button" class="caddy-btn">🏌️ Ask the Caddy <span>+1</span></button>
+        </div>
 
         <div id="result" class="result hidden">
           <div class="result-top">
@@ -227,7 +242,7 @@
 
   <script>window.GOLF = {"name": "NBA Golf", "key": "nbagolf", "dailySeed": "nba-golf-daily:", "dailyEpoch": "2026-11-27", "uniformFirstDaily": false, "source": "Basketball-Reference", "leaderboard": true, "lbSport": "nba", "allFams": ["score", "reb", "play", "def", "gen"], "tees": {"champ": ["score", "reb", "play", "def"], "members": ["score", "reb", "play", "def", "gen"]}, "membersFrom": 2000};</script>
   <script src="../shared/leaderboard-config.js?v=12"></script>
-  <script src="../shared/game.js?v=35"></script>
+  <script src="../shared/game.js?v=37"></script>
   <!-- Cloudflare Web Analytics: cookieless page-view counts (see docs/traffic-analytics.md) -->
   <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "491b1652aaf04bb68538096815c8875a"}'></script>
 </body>

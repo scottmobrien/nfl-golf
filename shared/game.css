@@ -333,3 +333,21 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
 .ladder li.guess { font-weight: 800; }
 .ladder li.pin-row { font-weight: 800; color: var(--flag); }
 .ladder-more { margin-top: 4px; padding: 0; border: 0; background: none; color: var(--good); font-weight: 700; font-size: 13px; cursor: pointer; }
+
+/* rules v3 */
+.reveal-head small { display: block; font-weight: 600; color: var(--muted); font-size: 12px; margin-top: 1px; }
+.ladder li small { color: var(--muted); font-weight: 600; }
+.putt-btn { display: block; margin: 8px auto 0; padding: 8px 14px; border-radius: 999px; border: 2px solid var(--good); background: #fff; color: var(--good); font-weight: 800; font-size: 14px; cursor: pointer; }
+.putt-btn span { display: block; font-size: 11px; font-weight: 600; color: var(--muted); }
+.putt-btn:hover { background: #eef6ee; }
+.era-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.era-chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: #fff; font-size: 13px; font-weight: 700; color: var(--ink); cursor: pointer; }
+.era-chip:hover { border-color: var(--good); color: var(--good); }
+.team-row { margin: 4px 0 8px; }
+.team-row select { font-size: 15px; padding: 6px 8px; }
+.tee-team .tee-dot { background: var(--gold); }
+.hb-team { background: var(--gold); color: var(--turf); }
+.mull-btn { margin-right: 6px; }
+.mull-tag { display: inline-block; margin: 0 0 4px; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 800; color: #6a3fa0; background: #efe6fb; }
+.extra-btns { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.extra-btns .caddy-btn { margin: 0; }

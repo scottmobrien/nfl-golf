@@ -1,6 +1,9 @@
 """Pull every NBA (and 1947-49 BAA) season's player totals and advanced stats from Basketball-Reference.
 
 Usage: python3 tools/fetch_nba.py [first_year] [last_year]   (years are season end years; default 1947-2027)
+       python3 tools/fetch_nba.py --teams [first_year] [last_year]
+         per-team rows instead (a traded player gets one row per team, no "2TM" row), totals page only,
+         written to data-src/nba/seasons_teams.json. This is what the builder uses, so Team Tees can split by team.
 
 Writes data-src/nba/seasons.json:
   {year: {"totals": {"cols": [...], "rows": [[player_id, name, ...cells]]}, "advanced": {...}}}
@@ -11,10 +14,13 @@ season, so re-running resumes where it stopped.
 import html, json, os, re, sys, time, urllib.error, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "data-src", "nba", "seasons.json")
+TEAMS = "--teams" in sys.argv
+if TEAMS:
+    sys.argv.remove("--teams")
+OUT = os.path.join(ROOT, "data-src", "nba", "seasons_teams.json" if TEAMS else "seasons.json")
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
 GAP = 3.6
-PAGES = {"totals": "totals_stats", "advanced": "advanced"}
+PAGES = {"totals": "totals_stats"} if TEAMS else {"totals": "totals_stats", "advanced": "advanced"}
 
 
 def league(year):
@@ -43,10 +49,18 @@ def parse(page, table_id):
     rows, seen = [], set()
     for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", re.search(r"<tbody>(.*?)</tbody>", t, re.S).group(1), re.S):
         link = re.search(r'href="(/players/[^"]+)"', tr)
-        if not link or link.group(1) in seen:
+        if not link:
             continue
-        seen.add(link.group(1))
         cells = {k: text(v) for k, v in re.findall(r'data-stat="([a-z0-9_]+)"[^>]*>(.*?)</t[dh]>', tr, re.S)}
+        team = cells.get("team_name_abbr") or cells.get("team_id") or ""
+        if TEAMS:  # one row per player per team; skip the combined "2TM"/"TOT" row
+            if re.fullmatch(r"\dTM|TOT", team) or (link.group(1), team) in seen:
+                continue
+            seen.add((link.group(1), team))
+        else:
+            if link.group(1) in seen:
+                continue
+            seen.add(link.group(1))
         name = cells.get("name_display") or cells.get("player") or ""
         rows.append([link.group(1), name.rstrip("*"), *[cells.get(c, "") for c in cols]])
     return {"cols": cols, "rows": rows}

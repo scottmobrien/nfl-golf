@@ -34,9 +34,14 @@ Their boards are all built from season-by-season stats by `tools/golf_build.py` 
 
 | Sport | Pull | Build | Source |
 |---|---|---|---|
-| NBA | `python3 tools/fetch_nba.py` (~25 min) | `python3 tools/build_nba.py` | Basketball-Reference (NBA + BAA, no ABA) |
+| NBA | `python3 tools/fetch_nba.py --teams` (~5 min; one row per player per team, which the build prefers) | `python3 tools/build_nba.py` | Basketball-Reference (NBA + BAA, no ABA) |
 | MLB | download the Lahman CSV zip into `data-src/mlb/lahman/`; `python3 tools/fetch_mlb_season.py 2026` for seasons Lahman lacks | `python3 tools/build_mlb.py` | Lahman (CC BY-SA 3.0) + Baseball-Reference |
 | NHL | `python3 tools/fetch_nhl.py` (~40 min) | `python3 tools/build_nhl.py` | NHL stats API (NHL only, no WHA) |
+
+**Team Tees.** Each build tags every season row with today's franchise (relocations folded in: Sonics to
+Thunder, Nordiques to Avalanche, Cardinals to Arizona). MLB (Lahman stints) and NBA (`--teams` fetch) split a
+traded player's season by team. NFL and NHL sources only have a traded season combined, so that season counts
+for neither team.
 
 The pullers resume where they stopped. Raw pulls in `data-src/nba|mlb|nhl/` are kept out of git.
 
