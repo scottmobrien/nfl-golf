@@ -108,8 +108,13 @@ def display(text, unit):
 pfr = json.load(open(os.path.join(SRC, "pfr_all_career_leaders.json")))
 meta = pfr.pop("_meta")
 boards, skipped = [], []
+# Boards left out by choice: Approximate Value (an opaque PFR metric) and Games Played (every position,
+# so it's mostly kickers and punters).
+CUT = {"av", "career_av", "g"}
 
 for key, b in pfr.items():
+    if key in CUT:
+        continue
     stat = next(h for h in b["headers"] if h["stat"] not in NON_STAT)
     rows, seen = [], set()
     for r in b["rows"]:
@@ -267,8 +272,8 @@ def spec_keys(sp):
     return ks
 
 
-specs = [sp for sp in SPECS if seasons_raw and all(spec_keys(sp))]
-dropped = [sp["id"] for sp in SPECS if sp not in specs]
+specs = [sp for sp in SPECS if seasons_raw and all(spec_keys(sp)) and sp["id"] not in CUT]
+dropped = [sp["id"] for sp in SPECS if sp not in specs and sp["id"] not in CUT]
 needed = collections.defaultdict(list)  # page -> stats used by some board
 for sp in specs:
     for k in spec_keys(sp):
