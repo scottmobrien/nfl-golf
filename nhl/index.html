@@ -20,7 +20,7 @@
   <meta name="twitter:description" content="Name the player closest to a random spot on an all-time NHL leaderboard. Scored like golf, with a Daily 9 for everyone." />
   <meta name="twitter:image" content="https://sportsbutmakeitgolf.com/og.png" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9B%B3%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="../shared/game.css?v=22" />
+  <link rel="stylesheet" href="../shared/game.css?v=23" />
 </head>
 <body>
   <header class="topbar">
@@ -149,7 +149,8 @@
         <div id="holeTee" class="hole-tee"></div>
         <h2 id="catName" class="cat-name">Category</h2>
         <p id="catNote" class="cat-note hidden"></p>
-        <p class="cat-sub">Ranked list goes to <b>#<span id="listSize">50</span></b>. Find the player ranked <b>#<span id="parRank2">1</span></b><span id="pinStat"></span> — or as close as you can.</p>
+        <p class="cat-sub"><span id="pinStat"></span><span id="listSize">50</span> players</p>
+        <div id="holeViz" class="hole-viz"></div>
 
         <div id="caddyBox" class="caddy-box hidden" aria-live="polite"></div>
         <div id="reveal" class="reveal hidden" aria-live="polite"></div>
@@ -216,7 +217,7 @@
 
   <script>window.GOLF = {"name": "NHL Golf", "key": "nhlgolf", "dailySeed": "nhl-golf-daily:", "dailyEpoch": "2026-11-27", "uniformFirstDaily": false, "source": "the NHL", "leaderboard": true, "lbSport": "nhl", "allFams": ["score", "skate", "goal"], "tees": {"champ": ["score", "skate"], "members": ["score", "skate", "goal"]}, "membersFrom": 2000};</script>
   <script src="../shared/leaderboard-config.js?v=12"></script>
-  <script src="../shared/game.js?v=29"></script>
+  <script src="../shared/game.js?v=30"></script>
   <!-- Cloudflare Web Analytics: cookieless page-view counts (see docs/traffic-analytics.md) -->
   <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "491b1652aaf04bb68538096815c8875a"}'></script>
 </body>

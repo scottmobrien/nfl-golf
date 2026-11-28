@@ -268,15 +268,40 @@ button:focus-visible, .choice:focus-visible { outline: 3px solid var(--gold); ou
 .scorecard .par-row td { font-weight: 700; color: var(--muted); }
 
 /* shot-by-shot holes */
-.shot-name { margin: 0 0 8px; font-size: 15px; }
+.cat-note { display: inline-block; margin: 2px 0 6px; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #8a5a00; background: #fbefd2; }
+.cat-sub { margin: 0 0 12px; font-size: 14px; }
+.hole-viz { position: relative; margin: 0 -4px 14px; border-radius: 12px; overflow: hidden; background: #2f5a12; line-height: 0; user-select: none; }
+.hole-viz svg { display: block; width: 100%; max-height: 300px; }
+.hole-viz .tracer { fill: none; stroke: #ff5a3c; stroke-width: 2.2; stroke-linecap: round; opacity: .45; }
+.hole-viz .tracer.last { opacity: 1; }
+.hole-viz .ball { fill: #fff; stroke: #1d2a14; stroke-width: .8; }
+.hole-viz .old-ball { fill: #fff; opacity: .5; }
+.hole-viz .ob line { stroke: #fff; stroke-width: 2.4; }
+.hole-viz .ob text { fill: #fff; font: 700 10px system-ui, sans-serif; }
+.hole-viz .skip-hint { display: none; position: absolute; right: 10px; bottom: 8px; line-height: 1; font-size: 12px; font-weight: 700; color: #fff; background: rgba(0,0,0,.35); padding: 5px 9px; border-radius: 999px; }
+.hole-viz.flying { cursor: pointer; }
+.hole-viz.flying .skip-hint { display: block; }
+.celebrate-banner { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%) rotate(-4deg); line-height: 1.1; white-space: nowrap;
+  font-size: clamp(26px, 7vw, 42px); font-weight: 900; letter-spacing: 1px; color: var(--turf); background: var(--gold); padding: 10px 22px; border-radius: 10px;
+  border: 3px solid #fff; animation: bannerIn .45s cubic-bezier(.2,1.4,.4,1) both; z-index: 2; }
+.celebrate-banner.out { animation: bannerOut .4s ease both; }
+@keyframes bannerIn { from { transform: translate(-50%, -50%) rotate(-4deg) scale(.2); opacity: 0; } }
+@keyframes bannerOut { to { transform: translate(-50%, -50%) rotate(-4deg) scale(.6); opacity: 0; } }
+.confetti { position: absolute; top: -12px; width: 7px; height: 11px; border-radius: 2px; animation: confettiFall 2s linear both; z-index: 1; }
+@keyframes confettiFall { to { top: 105%; margin-left: 30px; transform: rotate(540deg); opacity: .8; } }
+.shot-name { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 15px; }
 .shot-name b { font-size: 17px; }
-.shot-name small { color: var(--muted); font-weight: 600; margin-left: 6px; }
-.reveal { margin: 0 0 14px; display: grid; gap: 10px; }
-.reveal-shot { padding: 10px 12px; border-radius: 12px; background: #eef6ee; border: 1px solid #cfe3cf; }
-.reveal-head { font-size: 14px; margin-bottom: 6px; }
-.reveal-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow: auto; columns: 2; column-gap: 16px; font-size: 14px; }
-.reveal-list li { display: grid; grid-template-columns: 44px 1fr; gap: 6px; padding: 2px 0; break-inside: avoid; }
-.reveal-list .rk { color: var(--muted); font-variant-numeric: tabular-nums; }
-.reveal-list li.guess { font-weight: 800; }
-.reveal-list li.pin-row { font-weight: 800; color: #b3261e; }
-@media (max-width: 520px) { .reveal-list { columns: 1; } }
+.shot-name small { color: var(--bad); font-weight: 700; }
+.dots { display: inline-flex; gap: 5px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--good); }
+.dot.on { background: var(--good); }
+.reveal { margin: 0 0 12px; }
+.reveal-head { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.ladder { list-style: none; margin: 0; padding: 0 0 0 10px; border-left: 3px solid #b9dcb9; font-size: 14px; max-height: 260px; overflow: auto; }
+.ladder li { display: grid; grid-template-columns: 48px 1fr; gap: 6px; padding: 2px 0; }
+.ladder li.far { display: none; }
+.reveal.open .ladder li.far { display: grid; }
+.ladder .rk { color: var(--muted); font-variant-numeric: tabular-nums; }
+.ladder li.guess { font-weight: 800; }
+.ladder li.pin-row { font-weight: 800; color: var(--flag); }
+.ladder-more { margin-top: 4px; padding: 0; border: 0; background: none; color: var(--good); font-weight: 700; font-size: 13px; cursor: pointer; }

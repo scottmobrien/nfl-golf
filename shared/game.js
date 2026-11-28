@@ -423,15 +423,15 @@
     $("holePar").textContent = h.hp || 4;
     $("holeYds").textContent = holeYards(h);
     $("parRank").textContent = h.par;
-    $("parRank2").textContent = h.par;
-    // Default: show the pin player's stat, e.g. "#85 (48 TD)". Hard mode hides it.
-    $("pinStat").textContent = round.tee.hard ? "" : ` (${h.cat.leaders.find((p) => p.rank === h.par).disp})`;
+    // Default: show the pin player's stat, e.g. "48 TD · 250 players". Hard mode hides it.
+    $("pinStat").textContent = round.tee.hard ? "" : `${h.cat.leaders.find((p) => p.rank === h.par).disp} · `;
     $("catName").textContent = h.cat.name;
     const note = h.cat.note ?? h.cat.n ?? "";
     $("catNote").textContent = note;
     $("catNote").classList.toggle("hidden", !note);
     $("listSize").textContent = maxRank(h.cat);
     renderCaddy(h);
+    renderHoleViz(h);
     $("shotName").classList.toggle("hidden", !h.multi);
     if (h.multi) renderShot(h); else $("reveal").classList.add("hidden");
     $("result").classList.add("hidden");
@@ -457,7 +457,8 @@
     return { name: text.trim(), key }; // not on any leaderboard — allowed, but it's OB here
   }
 
-  function submitGuess(text) {
+  async function submitGuess(text) {
+    if (round.flying) return;
     const r = resolveGuess(text);
     if (r.error) { flashInput(r.error); return; }
     const h = round.holes[round.idx];
@@ -470,8 +471,145 @@
       d.holes = round.holes.filter((x) => x.strokes != null).length;
       saveDaily(d);
     }
-    if (h.strokes != null) renderResult(h);
-    else { hideAc(); $("guessInput").value = ""; renderShot(h); $("guessInput").focus(); }
+    // Ball flight first, then the result or the next shot.
+    hideAc();
+    $("guessInput").value = "";
+    $("guessForm").classList.add("hidden");
+    $("caddyBtn").classList.add("hidden");
+    round.flying = true;
+    renderHoleViz(h);
+    await flyLast($("holeViz"), h.strokes != null && !h.ob && h.miss === 0); // holed shots always play in full
+    round.flying = false;
+    if (round.holes[round.idx] !== h) return; // left the hole mid-flight
+    if (h.strokes != null) { await celebrate($("holeViz"), h); if (round.holes[round.idx] === h) renderResult(h); }
+    else { renderShot(h); renderCaddy(h); $("guessForm").classList.remove("hidden"); $("guessInput").focus({ preventScroll: true }); }
+  }
+
+  // ---------- the hole: overhead view with ball-flight tracers ----------
+  // Straight hole, tee at the bottom, green at the top. A shot lands short of the pin if the guess ranks below
+  // it and long if above; the bigger the miss, the further from the flag and the more the flight curves.
+  // Shots alternate left and right. OB flies off the side to a white stake.
+  const PIN_XY = { x: 150, y: 86 };
+  const teeY = (hp) => ({ 3: 236, 4: 300, 5: 322 }[hp] || 300);
+  const shotsOf = (h) => (h.multi ? h.shots : h.strokes != null ? [{ name: h.guess, rank: h.guessRank }] : []);
+  function landing(h, i, from) {
+    const s = shotsOf(h)[i], side = (round.holes.indexOf(h) + i) % 2 ? 1 : -1, ty = teeY(h.hp || 4);
+    if (s.rank == null) return { x: side > 0 ? 292 : 8, y: Math.max(60, (from.y + PIN_XY.y) / 2), ob: true };
+    if (s.rank === h.par) return { ...PIN_XY, holed: true };
+    const f = Math.abs(s.rank - h.par) / h.cat.leaders.length, dir = s.rank > h.par ? 1 : -1;
+    const y = Math.max(12, Math.min(ty - 14, PIN_XY.y + dir * Math.min(12 + f * 600, dir > 0 ? ty - 100 : 74)));
+    const depth = 0.6 + ((y - 30) / 300) * 0.4; // things up the fairway look smaller
+    const x = 150 + side * Math.min(8 + f * 420, 125) * depth * (f < 0.02 ? 0.5 : 1);
+    return { x: Math.max(14, Math.min(286, x)), y };
+  }
+  function shotLegs(h) {
+    let from = { x: 150, y: teeY(h.hp || 4) };
+    return shotsOf(h).map((_, i) => {
+      const to = landing(h, i, from), leg = { from, to };
+      if (!to.ob) from = to; // after OB you play again from where you were
+      return leg;
+    });
+  }
+  const arcD = (a, b) => {
+    const cx = a.x + (b.x - a.x) * 0.15, cy = Math.max(6, Math.min(a.y, b.y) - Math.abs(a.y - b.y) * 0.3 - 16);
+    return `M${a.x.toFixed(1)} ${a.y.toFixed(1)} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+  };
+  function renderHoleViz(h) {
+    const ty = teeY(h.hp || 4), legs = shotLegs(h);
+    const last = legs.length ? legs[legs.length - 1] : null;
+    const ball = last ? (last.to.ob ? last.from : last.to) : { x: 150, y: ty };
+    const stake = (p) => `<g class="ob"><line x1="${p.x}" y1="${p.y - 9}" x2="${p.x}" y2="${p.y + 5}"/><text x="${p.x < 150 ? p.x + 5 : p.x - 5}" y="${p.y - 2}" text-anchor="${p.x < 150 ? "start" : "end"}">OB</text></g>`;
+    const tracers = legs.map((l, i) => `<path class="tracer${i === legs.length - 1 ? " last" : ""}" d="${arcD(l.from, l.to)}"/>${l.to.ob ? stake(l.to) : ""}`).join("");
+    const marks = legs.filter((l, i) => !l.to.ob && i < legs.length - 1).map((l) => `<circle class="old-ball" cx="${l.to.x.toFixed(1)}" cy="${l.to.y.toFixed(1)}" r="2.6"/>`).join("");
+    const H = ty + 28; // picture height follows the hole's length, so par 3s don't trail empty rough
+    $("holeViz").innerHTML = `<svg viewBox="0 0 300 ${H}" role="img" aria-label="Hole ${round.holes.indexOf(h) + 1}, par ${h.hp || 4}">
+      <rect width="300" height="${H}" fill="#2f5a12"/>
+      <path d="M88 ${ty + 22} L212 ${ty + 22} L178 62 L122 62 Z" fill="#4f8a1c"/>
+      <path d="M116 ${ty + 22} L131 ${ty + 22} L145 62 L141 62 Z M169 ${ty + 22} L184 ${ty + 22} L159 62 L155 62 Z" fill="#5a9a22"/>
+      <ellipse cx="150" cy="86" rx="42" ry="17" fill="#7fbf3a" stroke="#a8d670" stroke-width="1"/>
+      <rect x="138" y="${ty - 3}" width="24" height="9" rx="2" fill="#7fbf3a"/>
+      <g class="flag"><circle cx="150" cy="86" r="2.2" fill="#1d2a14"/><line x1="150" y1="86" x2="150" y2="61" stroke="#f4f1e6" stroke-width="1.3"/><path d="M150 61 L162 65.5 L150 70 Z" fill="#e2392d"/></g>
+      ${marks}<g class="tracers">${tracers}</g>
+      <circle class="ball" cx="${ball.x.toFixed(1)}" cy="${ball.y.toFixed(1)}" r="3.6"/>
+    </svg><div class="skip-hint">Tap to skip</div>`;
+  }
+  const reducedMotion = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Animates the newest tracer. Tapping the hole skips it, and every flight after it this round, except shots
+  // that go in the cup: those always play (force), because watching it drop is the fun part.
+  function flyLast(viz, force = false) {
+    return new Promise((resolve) => {
+      const svg = viz.querySelector("svg"), p = svg && svg.querySelector(".tracer.last"), ball = svg && svg.querySelector(".ball");
+      if (!p || (round.skipFlight && !force) || reducedMotion()) return resolve();
+      const len = p.getTotalLength(), end = p.getPointAtLength(len), T = 1300, t0 = performance.now();
+      p.style.strokeDasharray = len;
+      p.style.strokeDashoffset = len;
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        p.style.strokeDashoffset = 0;
+        ball.setAttribute("cx", end.x); ball.setAttribute("cy", end.y); ball.setAttribute("r", 3.6);
+        viz.classList.remove("flying");
+        viz.onclick = null;
+        resolve();
+      };
+      viz.classList.toggle("flying", !force);
+      viz.onclick = force ? null : () => { round.skipFlight = true; finish(); };
+      const step = (now) => {
+        if (done) return;
+        const t = Math.min((now - t0) / T, 1), e = 1 - (1 - t) * (1 - t), pt = p.getPointAtLength(len * e);
+        p.style.strokeDashoffset = len * (1 - e);
+        ball.setAttribute("cx", pt.x); ball.setAttribute("cy", pt.y);
+        ball.setAttribute("r", (3.6 + 3.2 * Math.sin(Math.PI * t)).toFixed(2)); // bigger at the top of the flight
+        if (t < 1) requestAnimationFrame(step); else finish();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+  // Holed shots zoom in on the green and drop into the cup; any finish under par gets confetti and a banner.
+  // Resolves once the ball is in (so the result text doesn't give it away); the banner carries on by itself.
+  function tween(ms, fn) {
+    return new Promise((res) => {
+      const t0 = performance.now();
+      const step = (now) => { const t = Math.min((now - t0) / ms, 1); fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2); t < 1 ? requestAnimationFrame(step) : res(); };
+      requestAnimationFrame(step);
+    });
+  }
+  async function celebrate(viz, h) {
+    const holed = !h.ob && h.miss === 0, p = toPar(h);
+    if (!holed && p >= 0) return;
+    const svg = viz.querySelector("svg"), ball = svg.querySelector(".ball");
+    const quick = reducedMotion();
+    const FULL = svg.getAttribute("viewBox").split(" ").map(Number), zh = (88 * FULL[3]) / 300;
+    const ZOOM = [106, 86 - zh * 0.5, 88, zh];
+    const setVB = (t) => svg.setAttribute("viewBox", FULL.map((v, i) => (v + (ZOOM[i] - v) * t).toFixed(2)).join(" "));
+    if (holed && !quick) {
+      await tween(650, setVB);
+      await tween(450, (t) => { ball.setAttribute("r", (3.6 * (1 - t)).toFixed(2)); ball.setAttribute("cy", (86 + 1.5 * t).toFixed(2)); });
+    } else if (holed) ball.setAttribute("r", 0);
+    if (!viz.isConnected || !svg.isConnected) return;
+    const banner = document.createElement("div");
+    banner.className = "celebrate-banner";
+    banner.textContent = label(h)[0].replace(/!$/, "").toUpperCase() + "!";
+    viz.appendChild(banner);
+    const colors = ["#e0b13a", "#d63c2f", "#ffffff", "#7fbf3a", "#4a90d9"];
+    for (let i = 0; i < 70; i++) {
+      const c = document.createElement("i");
+      c.className = "confetti";
+      c.style.left = Math.random() * 100 + "%";
+      c.style.background = colors[i % colors.length];
+      c.style.animationDelay = (Math.random() * 0.5).toFixed(2) + "s";
+      c.style.animationDuration = (1.6 + Math.random() * 1.2).toFixed(2) + "s";
+      c.style.transform = `rotate(${Math.floor(Math.random() * 360)}deg)`;
+      viz.appendChild(c);
+    }
+    setTimeout(async () => {
+      if (!svg.isConnected) return;
+      banner.classList.add("out");
+      viz.querySelectorAll(".confetti").forEach((c) => c.remove());
+      if (holed && !quick) await tween(550, (t) => setVB(1 - t));
+      banner.remove();
+    }, 2600);
   }
 
   // One swing on a shot-by-shot hole. Finishes the hole when it's holed or it was the last shot.
@@ -500,32 +638,37 @@
     h.pinName = pinNames.length === 1 ? pinNames[0] : `${pinNames[0]} +${pinNames.length - 1} tied`;
   }
 
-  // Mid-hole: name the next shot and show what the earlier shots revealed (the pin's own row stays hidden).
+  // Mid-hole: dots for the shots, the next shot's name, and a short ladder of players around the last shot
+  // (two each side; "Show more" opens the full 5% window). The pin's own row stays hidden.
   function renderShot(h) {
-    const k = h.shots.length, total = h.hp - 2;
-    $("shotName").innerHTML = total > 1
-      ? `<b>${SHOT_NAMES[h.hp][k]}</b> <small>shot ${k + 1} of ${total}${h.pen ? ` · ${h.pen} penalty stroke${h.pen > 1 ? "s" : ""}` : ""}</small>`
-      : `<b>${SHOT_NAMES[h.hp][0]}</b> <small>one swing on a par 3</small>`;
-    const box = $("reveal");
+    const k = h.shots.length, n = h.hp - 2;
+    const dots = Array.from({ length: n }, (_, i) => `<span class="dot${i < k ? " on" : ""}"></span>`).join("");
+    $("shotName").innerHTML = `<span class="dots">${dots}</span><b>${SHOT_NAMES[h.hp][Math.min(k, n - 1)]}</b>`
+      + (h.pen ? `<small>+${h.pen} penalty</small>` : "");
+    const box = $("reveal"), s = h.shots[k - 1];
+    box.classList.remove("open");
     box.classList.toggle("hidden", !k);
     if (!k) return;
-    const len = h.cat.leaders.length, rad = revealRadius(len);
-    box.innerHTML = h.shots.map((s, i) => {
-      const what = SHOT_NAMES[h.hp][i];
-      if (s.rank == null) return `<div class="reveal-shot"><div class="reveal-head">${what}: <b>${esc(s.name)}</b> isn't on this list. Out of bounds, +1 penalty stroke.</div></div>`;
-      const off = s.rank - h.par, dir = off < 0 ? "above" : "below";
-      const rows = h.cat.leaders.filter((p) => Math.abs(p.rank - s.rank) <= rad);
-      const seen = new Set();
-      const lis = rows.map((p) => {
-        if (p.rank === h.par) {
-          if (seen.has(p.rank)) return "";
-          seen.add(p.rank);
-          return `<li class="pin-row"><span class="rk">#${p.rank}</span><span>🚩 The pin</span></li>`;
-        }
-        return `<li class="${norm(p.name) === norm(s.name) ? "guess" : ""}"><span class="rk">#${p.rank}</span><span>${esc(p.name)}</span></li>`;
-      }).join("");
-      return `<div class="reveal-shot"><div class="reveal-head">${what}: <b>${esc(s.name)}</b> is #${s.rank}, ${Math.abs(off)} spot${Math.abs(off) === 1 ? "" : "s"} ${dir} the pin. Nearby (within ${rad}):</div><ol class="reveal-list">${lis}</ol></div>`;
-    }).reverse().join("");
+    if (s.rank == null) { box.innerHTML = `<div class="reveal-head"><b>${esc(s.name)}</b> isn't on this list · OB, +1 stroke</div>`; return; }
+    const off = s.rank - h.par, rad = revealRadius(h.cat.leaders.length);
+    let pinShown = false, far = 0;
+    const lis = h.cat.leaders.filter((p) => Math.abs(p.rank - s.rank) <= rad).map((p) => {
+      const cls = Math.abs(p.rank - s.rank) > 2 ? ["far"] : [];
+      if (p.rank === h.par) {
+        if (pinShown) return "";
+        pinShown = true;
+        cls.push("pin-row");
+        if (cls[0] === "far") far++;
+        return `<li class="${cls.join(" ")}"><span class="rk">#${p.rank}</span><span>🚩 The pin</span></li>`;
+      }
+      if (norm(p.name) === norm(s.name)) cls.push("guess");
+      if (cls[0] === "far") far++;
+      return `<li class="${cls.join(" ")}"><span class="rk">#${p.rank}</span><span>${cls.includes("guess") ? "● " : ""}${esc(p.name)}</span></li>`;
+    }).join("");
+    box.innerHTML = `<div class="reveal-head">${off > 0 ? "↑" : "↓"} ${Math.abs(off)} spot${Math.abs(off) === 1 ? "" : "s"} to the pin</div>`
+      + `<ol class="ladder">${lis}</ol>` + (far ? `<button type="button" class="ladder-more">Show ${far} more</button>` : "");
+    const more = box.querySelector(".ladder-more");
+    if (more) more.addEventListener("click", () => { box.classList.add("open"); more.remove(); });
   }
 
   function scoreGuess(h, r) {
@@ -602,6 +745,7 @@
     $("guessBtn").disabled = true;
     $("guessForm").classList.add("hidden");
     $("shotName").classList.add("hidden");
+    $("reveal").classList.add("hidden");
 
     const [txt, cls] = label(h);
     $("resultLabel").textContent = txt;
