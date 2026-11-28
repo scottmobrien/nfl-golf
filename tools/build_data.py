@@ -109,8 +109,8 @@ pfr = json.load(open(os.path.join(SRC, "pfr_all_career_leaders.json")))
 meta = pfr.pop("_meta")
 boards, skipped = [], []
 # Boards left out by choice: Approximate Value (an opaque PFR metric) and Games Played (every position,
-# so it's mostly kickers and punters).
-CUT = {"av", "career_av", "g"}
+# so it's mostly kickers and punters), Games Started (every position).
+CUT = {"av", "career_av", "g", "gs"}
 
 for key, b in pfr.items():
     if key in CUT:
