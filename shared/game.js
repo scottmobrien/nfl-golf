@@ -409,13 +409,32 @@
     show("hole");
   }
 
+  // The pin's stat as a phrase: "5.37% sack percentage", "125.5 sacks". Built from the board's name, minus
+  // "Career", parenthetical notes and "%" (-> "percentage"); a few names read better rewritten.
+  const STAT_WORDS = {
+    "Sacked": "times sacked", "Sacked %": "sack percentage", "Sacked Yards Lost": "yards lost to sacks",
+    "QB Pick Six": "pick sixes thrown", "Tackles": "solo tackles", "Tackles Combined": "combined tackles",
+    "Total Offense": "yards of total offense", "Hit by Pitch": "times hit by pitch", "Caught Stealing": "times caught stealing",
+    "Grounded Into Double Plays": "times grounded into a double play",
+  };
+  function statPhrase(cat, disp) {
+    const m = disp.match(/^[-+−]?[\d.,]+%?/);
+    if (!m) return disp;
+    const n = cat.name.replace(/^(Career|Most) /, "").replace(/\s*\([^)]*\)/g, "").trim();
+    let w = STAT_WORDS[n] ?? n.replace(/ %$/, " percentage").replace(/&/g, "and").split(" ")
+      .map((x) => (x === x.toUpperCase() ? x : x.toLowerCase())).join(" ");
+    if (/\(Weighted\)/.test(cat.name)) w = "weighted " + w;
+    const num = n === "Plus/Minus" && !/^[-+−]/.test(m[0]) ? "+" + m[0] : m[0];
+    return `${num} ${w}`;
+  }
+
   function renderHole() {
     const h = round.holes[round.idx];
     $("holeNum").textContent = round.idx + 1;
     $("holePar").textContent = h.hp || 4;
     $("parRank").textContent = h.par;
-    // Default: "PIN – who is #53 (73.5 Sk) out of 245". Hard mode hides the stat; the list size always shows.
-    $("pinStat").textContent = round.tee.hard ? "" : `(${h.cat.leaders.find((p) => p.rank === h.par).disp})`;
+    // Default: "PIN – who is #53 (73.5 sacks) out of 245". Hard mode hides the stat; the list size always shows.
+    $("pinStat").textContent = round.tee.hard ? "" : `(${statPhrase(h.cat, h.cat.leaders.find((p) => p.rank === h.par).disp)})`;
     // The hole badge takes the tee's color (the Daily 9 plays the Members Tees).
     const teeId = round.tee.id === "daily" ? "members" : round.tee.id;
     const hb = `hole-badge hb-${["tips", "champ", "members", "red"].includes(teeId) ? teeId : "members"}`;
