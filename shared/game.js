@@ -978,6 +978,12 @@
     else { renderDailyCard(); show("setup"); }
   });
 
+  // Back to the all-sports landing page; a round in progress asks first (the Daily 9 keeps its progress).
+  $("allSportsLink").addEventListener("click", (e) => {
+    const inRound = round && !$("hole").classList.contains("hidden") && !round.tee.daily && round.holes.some((h) => h.strokes != null);
+    if (inRound && !confirm("Leave this round? Your scores so far will be lost.")) e.preventDefault();
+  });
+
   // Back to the home screen mid-round. The Daily 9 keeps its progress (resume from the card).
   $("homeBtn").addEventListener("click", () => {
     const played = round.holes.some((h) => h.strokes != null);
