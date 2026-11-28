@@ -414,8 +414,8 @@
     $("holeNum").textContent = round.idx + 1;
     $("holePar").textContent = h.hp || 4;
     $("parRank").textContent = h.par;
-    // Default: "Pin #53 73.5 Sk of 245". Hard mode hides the stat; the list size always shows.
-    $("pinStat").textContent = round.tee.hard ? "" : h.cat.leaders.find((p) => p.rank === h.par).disp;
+    // Default: "PIN – who is #53 (73.5 Sk) out of 245". Hard mode hides the stat; the list size always shows.
+    $("pinStat").textContent = round.tee.hard ? "" : `(${h.cat.leaders.find((p) => p.rank === h.par).disp})`;
     // The hole badge takes the tee's color (the Daily 9 plays the Members Tees).
     const teeId = round.tee.id === "daily" ? "members" : round.tee.id;
     const hb = `hole-badge hb-${["tips", "champ", "members", "red"].includes(teeId) ? teeId : "members"}`;
